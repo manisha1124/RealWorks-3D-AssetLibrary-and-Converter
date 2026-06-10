@@ -1,0 +1,8 @@
+Traceback (most recent call last):
+  File "D:\RealWorks\Animation Preset Lib\ASSET LIB APP\blender\convert.py", line 730, in main
+    heuristic_count = heuristic_texture_linking(os.path.dirname(os.path.abspath(input_file)), textures_dir, asset_dir)
+                      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\RealWorks\Animation Preset Lib\ASSET LIB APP\blender\convert.py", line 255, in heuristic_texture_linking
+    bpy.context.scene.render.engine = 'BLENDER_EEVEE' # Use EEVEE to avoid Workbench headless crash!
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+TypeError: bpy_struct: item.attr = val: enum "BLENDER_EEVEE" not found in ('BLENDER_EEVEE_NEXT', 'BLENDER_WORKBENCH', 'CYCLES')

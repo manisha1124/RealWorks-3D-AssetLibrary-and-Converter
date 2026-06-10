@@ -1,0 +1,350 @@
+Starting conversion for: E:\sample_assets_04\fiftyfourms3\improper_FiftyFourms_Chair_Alveus Rotate.fbx
+DEBUG: Processing image 'Map #2138623777' with filepath 'Map #2138623777'
+DEBUG: Path Map #2138623777 not found. Trying aggressive fallback.
+DEBUG: Final resolved path: Map #2138623777 (Exists: False)
+Texture not found: Map #2138623777
+DEBUG: Processing image 'Map #2138623778' with filepath 'Map #2138623778'
+DEBUG: Path Map #2138623778 not found. Trying aggressive fallback.
+DEBUG: Final resolved path: Map #2138623778 (Exists: False)
+Texture not found: Map #2138623778
+DEBUG: Processing image 'Map #2138798417' with filepath 'Map #2138798417'
+DEBUG: Path Map #2138798417 not found. Trying aggressive fallback.
+DEBUG: Final resolved path: Map #2138798417 (Exists: False)
+Texture not found: Map #2138798417
+DEBUG: Processing image 'Map #2138798421' with filepath 'Map #2138798421'
+DEBUG: Path Map #2138798421 not found. Trying aggressive fallback.
+DEBUG: Final resolved path: Map #2138798421 (Exists: False)
+Texture not found: Map #2138798421
+DEBUG: Processing image 'Map #2146355173' with filepath 'Map #2146355173'
+DEBUG: Path Map #2146355173 not found. Trying aggressive fallback.
+DEBUG: Final resolved path: Map #2146355173 (Exists: False)
+Texture not found: Map #2146355173
+DEBUG: Processing image 'Map #2146355182' with filepath 'E:\sample_assets_04\fiftyfourms3\maps\leather_Normal.png'
+DEBUG: Path E:\sample_assets_04\fiftyfourms3\maps\leather_Normal.png not found. Trying aggressive fallback.
+DEBUG: Final resolved path: E:\sample_assets_04\fiftyfourms3\maps\leather_Normal.png (Exists: False)
+Texture not found: E:\sample_assets_04\fiftyfourms3\maps\leather_Normal.png
+DEBUG: Processing image 'Map #2146355183' with filepath 'Map #2146355183'
+DEBUG: Path Map #2146355183 not found. Trying aggressive fallback.
+DEBUG: Final resolved path: Map #2146355183 (Exists: False)
+Texture not found: Map #2146355183
+DEBUG: Processing image 'Map #2146355187' with filepath 'Map #2146355187'
+DEBUG: Path Map #2146355187 not found. Trying aggressive fallback.
+DEBUG: Final resolved path: Map #2146355187 (Exists: False)
+Texture not found: Map #2146355187
+DEBUG: Processing image 'Map #2146355192' with filepath 'E:\sample_assets_04\fiftyfourms3\maps\Leather_Rough.png'
+DEBUG: Path E:\sample_assets_04\fiftyfourms3\maps\Leather_Rough.png not found. Trying aggressive fallback.
+DEBUG: Final resolved path: E:\sample_assets_04\fiftyfourms3\maps\Leather_Rough.png (Exists: False)
+Texture not found: E:\sample_assets_04\fiftyfourms3\maps\Leather_Rough.png
+DEBUG: Processing image 'Map #2146355197' with filepath 'Map #2146355197'
+DEBUG: Path Map #2146355197 not found. Trying aggressive fallback.
+DEBUG: Final resolved path: Map #2146355197 (Exists: False)
+Texture not found: Map #2146355197
+DEBUG: Processing image 'Map #2146355199' with filepath 'E:\sample_assets_04\fiftyfourms3\maps\leather_Height.png'
+DEBUG: Path E:\sample_assets_04\fiftyfourms3\maps\leather_Height.png not found. Trying aggressive fallback.
+DEBUG: Final resolved path: E:\sample_assets_04\fiftyfourms3\maps\leather_Height.png (Exists: False)
+Texture not found: E:\sample_assets_04\fiftyfourms3\maps\leather_Height.png
+DEBUG: Processing image 'Map #2146355337' with filepath 'E:\sample_assets_04\fiftyfourms3\maps\Leather_color_grey.jpg'
+DEBUG: Path E:\sample_assets_04\fiftyfourms3\maps\Leather_color_grey.jpg not found. Trying aggressive fallback.
+DEBUG: Final resolved path: E:\sample_assets_04\fiftyfourms3\maps\Leather_color_grey.jpg (Exists: False)
+Texture not found: E:\sample_assets_04\fiftyfourms3\maps\Leather_color_grey.jpg
+DEBUG: Processing image 'Map #2146355348' with filepath 'Map #2146355348'
+DEBUG: Path Map #2146355348 not found. Trying aggressive fallback.
+DEBUG: Final resolved path: Map #2146355348 (Exists: False)
+Texture not found: Map #2146355348
+DEBUG: Processing image 'Map #2146355358' with filepath 'E:\sample_assets_04\fiftyfourms3\maps\FIFTYFOURMS.png'
+DEBUG: Final resolved path: E:\sample_assets_04\fiftyfourms3\maps\FIFTYFOURMS.png (Exists: True)
+DEBUG: Processing image 'Map #2146355363' with filepath 'Map #2146355363'
+DEBUG: Path Map #2146355363 not found. Trying aggressive fallback.
+DEBUG: Final resolved path: Map #2146355363 (Exists: False)
+Texture not found: Map #2146355363
+DEBUG: Processing image 'Map #2146355375' with filepath 'Map #2146355375'
+DEBUG: Path Map #2146355375 not found. Trying aggressive fallback.
+DEBUG: Final resolved path: Map #2146355375 (Exists: False)
+Texture not found: Map #2146355375
+DEBUG: Processing image 'Map #2146355385' with filepath 'Map #2146355385'
+DEBUG: Path Map #2146355385 not found. Trying aggressive fallback.
+DEBUG: Final resolved path: Map #2146355385 (Exists: False)
+Texture not found: Map #2146355385
+DEBUG: Processing image 'Map #2146355388' with filepath 'Map #2146355388'
+DEBUG: Path Map #2146355388 not found. Trying aggressive fallback.
+DEBUG: Final resolved path: Map #2146355388 (Exists: False)
+Texture not found: Map #2146355388
+DEBUG: Processing image 'Map #2146355401' with filepath 'Map #2146355401'
+DEBUG: Path Map #2146355401 not found. Trying aggressive fallback.
+DEBUG: Final resolved path: Map #2146355401 (Exists: False)
+Texture not found: Map #2146355401
+DEBUG: Processing image 'Map #2146355493' with filepath 'Map #2146355493'
+DEBUG: Path Map #2146355493 not found. Trying aggressive fallback.
+DEBUG: Final resolved path: Map #2146355493 (Exists: False)
+Texture not found: Map #2146355493
+DEBUG: Processing image 'Map #2146355494' with filepath 'Map #2146355494'
+DEBUG: Path Map #2146355494 not found. Trying aggressive fallback.
+DEBUG: Final resolved path: Map #2146355494 (Exists: False)
+Texture not found: Map #2146355494
+DEBUG: Processing image 'Map #2146355495' with filepath 'Map #2146355495'
+DEBUG: Path Map #2146355495 not found. Trying aggressive fallback.
+DEBUG: Final resolved path: Map #2146355495 (Exists: False)
+Texture not found: Map #2146355495
+DEBUG: Processing image 'Map #2146355496' with filepath 'Map #2146355496'
+DEBUG: Path Map #2146355496 not found. Trying aggressive fallback.
+DEBUG: Final resolved path: Map #2146355496 (Exists: False)
+Texture not found: Map #2146355496
+DEBUG: Processing image 'Map #2146355498' with filepath 'Map #2146355498'
+DEBUG: Path Map #2146355498 not found. Trying aggressive fallback.
+DEBUG: Final resolved path: Map #2146355498 (Exists: False)
+Texture not found: Map #2146355498
+DEBUG: Processing image 'Map #2146355499' with filepath 'Map #2146355499'
+DEBUG: Path Map #2146355499 not found. Trying aggressive fallback.
+DEBUG: Final resolved path: Map #2146355499 (Exists: False)
+Texture not found: Map #2146355499
+DEBUG: Processing image 'Map #2146355501' with filepath 'Map #2146355501'
+DEBUG: Path Map #2146355501 not found. Trying aggressive fallback.
+DEBUG: Final resolved path: Map #2146355501 (Exists: False)
+Texture not found: Map #2146355501
+DEBUG: Processing image 'Map #2146355502' with filepath 'Map #2146355502'
+DEBUG: Path Map #2146355502 not found. Trying aggressive fallback.
+DEBUG: Final resolved path: Map #2146355502 (Exists: False)
+Texture not found: Map #2146355502
+DEBUG: Processing image 'Map #2146355503' with filepath 'E:\sample_assets_04\fiftyfourms3\maps\Wood1_Dif.tif'
+DEBUG: Path E:\sample_assets_04\fiftyfourms3\maps\Wood1_Dif.tif not found. Trying aggressive fallback.
+DEBUG: Final resolved path: E:\sample_assets_04\fiftyfourms3\maps\Wood1_Dif.tif (Exists: False)
+Texture not found: E:\sample_assets_04\fiftyfourms3\maps\Wood1_Dif.tif
+DEBUG: Processing image 'Map #2146355504' with filepath 'Map #2146355504'
+DEBUG: Path Map #2146355504 not found. Trying aggressive fallback.
+DEBUG: Final resolved path: Map #2146355504 (Exists: False)
+Texture not found: Map #2146355504
+DEBUG: Processing image 'Map #2146355505' with filepath 'Map #2146355505'
+DEBUG: Path Map #2146355505 not found. Trying aggressive fallback.
+DEBUG: Final resolved path: Map #2146355505 (Exists: False)
+Texture not found: Map #2146355505
+DEBUG: Processing image 'Map #2146355506' with filepath 'E:\sample_assets_04\fiftyfourms3\maps\Wood1_Disp.jpg'
+DEBUG: Path E:\sample_assets_04\fiftyfourms3\maps\Wood1_Disp.jpg not found. Trying aggressive fallback.
+DEBUG: Final resolved path: E:\sample_assets_04\fiftyfourms3\maps\Wood1_Disp.jpg (Exists: False)
+Texture not found: E:\sample_assets_04\fiftyfourms3\maps\Wood1_Disp.jpg
+DEBUG: Processing image 'Map #2146355507' with filepath 'E:\sample_assets_04\fiftyfourms3\maps\Wood1_Ref.jpg'
+DEBUG: Path E:\sample_assets_04\fiftyfourms3\maps\Wood1_Ref.jpg not found. Trying aggressive fallback.
+DEBUG: Final resolved path: E:\sample_assets_04\fiftyfourms3\maps\Wood1_Ref.jpg (Exists: False)
+Texture not found: E:\sample_assets_04\fiftyfourms3\maps\Wood1_Ref.jpg
+DEBUG: Processing image 'Map #2146355508' with filepath 'Map #2146355508'
+DEBUG: Path Map #2146355508 not found. Trying aggressive fallback.
+DEBUG: Final resolved path: Map #2146355508 (Exists: False)
+Texture not found: Map #2146355508
+DEBUG: Processing image 'Map #2146355509' with filepath 'Map #2146355509'
+DEBUG: Path Map #2146355509 not found. Trying aggressive fallback.
+DEBUG: Final resolved path: Map #2146355509 (Exists: False)
+Texture not found: Map #2146355509
+DEBUG: Processing image 'Map #2146355512' with filepath 'Map #2146355512'
+DEBUG: Path Map #2146355512 not found. Trying aggressive fallback.
+DEBUG: Final resolved path: Map #2146355512 (Exists: False)
+Texture not found: Map #2146355512
+DEBUG: Processing image 'Map #2146355970' with filepath 'Map #2146355970'
+DEBUG: Path Map #2146355970 not found. Trying aggressive fallback.
+DEBUG: Final resolved path: Map #2146355970 (Exists: False)
+Texture not found: Map #2146355970
+DEBUG: Processing image 'Map #2146355980' with filepath 'E:\sample_assets_04\fiftyfourms3\maps\GEMMA-3.1_Normal.jpg'
+DEBUG: Path E:\sample_assets_04\fiftyfourms3\maps\GEMMA-3.1_Normal.jpg not found. Trying aggressive fallback.
+DEBUG: Final resolved path: E:\sample_assets_04\fiftyfourms3\maps\GEMMA-3.1_Normal.jpg (Exists: False)
+Texture not found: E:\sample_assets_04\fiftyfourms3\maps\GEMMA-3.1_Normal.jpg
+DEBUG: Processing image 'Map #2146355984' with filepath 'E:\sample_assets_04\fiftyfourms3\maps\GEMMA-3.1_Height3.png'
+DEBUG: Path E:\sample_assets_04\fiftyfourms3\maps\GEMMA-3.1_Height3.png not found. Trying aggressive fallback.
+DEBUG: Final resolved path: E:\sample_assets_04\fiftyfourms3\maps\GEMMA-3.1_Height3.png (Exists: False)
+Texture not found: E:\sample_assets_04\fiftyfourms3\maps\GEMMA-3.1_Height3.png
+DEBUG: Processing image 'Map #2146355985' with filepath 'Map #2146355985'
+DEBUG: Path Map #2146355985 not found. Trying aggressive fallback.
+DEBUG: Final resolved path: Map #2146355985 (Exists: False)
+Texture not found: Map #2146355985
+DEBUG: Processing image 'Map #2146356025' with filepath 'E:\sample_assets_04\fiftyfourms3\maps\GEMMA-3.1_Roughness.PNG'
+DEBUG: Path E:\sample_assets_04\fiftyfourms3\maps\GEMMA-3.1_Roughness.PNG not found. Trying aggressive fallback.
+DEBUG: Final resolved path: E:\sample_assets_04\fiftyfourms3\maps\GEMMA-3.1_Roughness.PNG (Exists: False)
+Texture not found: E:\sample_assets_04\fiftyfourms3\maps\GEMMA-3.1_Roughness.PNG
+DEBUG: Processing image 'Map #2146356027' with filepath 'Map #2146356027'
+DEBUG: Path Map #2146356027 not found. Trying aggressive fallback.
+DEBUG: Final resolved path: Map #2146356027 (Exists: False)
+Texture not found: Map #2146356027
+DEBUG: Processing image 'Map #2146356044' with filepath 'E:\sample_assets_04\fiftyfourms3\maps\GEMMA-3.1_BaseColor.jpg'
+DEBUG: Path E:\sample_assets_04\fiftyfourms3\maps\GEMMA-3.1_BaseColor.jpg not found. Trying aggressive fallback.
+DEBUG: Final resolved path: E:\sample_assets_04\fiftyfourms3\maps\GEMMA-3.1_BaseColor.jpg (Exists: False)
+Texture not found: E:\sample_assets_04\fiftyfourms3\maps\GEMMA-3.1_BaseColor.jpg
+DEBUG: Processing image 'Map #2146356046' with filepath 'Map #2146356046'
+DEBUG: Path Map #2146356046 not found. Trying aggressive fallback.
+DEBUG: Final resolved path: Map #2146356046 (Exists: False)
+Texture not found: Map #2146356046
+DEBUG: Processing image 'Map #2146356049' with filepath 'Map #2146356049'
+DEBUG: Path Map #2146356049 not found. Trying aggressive fallback.
+DEBUG: Final resolved path: Map #2146356049 (Exists: False)
+Texture not found: Map #2146356049
+DEBUG: Processing image 'Map #2146356050' with filepath 'Map #2146356050'
+DEBUG: Path Map #2146356050 not found. Trying aggressive fallback.
+DEBUG: Final resolved path: Map #2146356050 (Exists: False)
+Texture not found: Map #2146356050
+DEBUG: Processing image 'Map #2146356051' with filepath 'Map #2146356051'
+DEBUG: Path Map #2146356051 not found. Trying aggressive fallback.
+DEBUG: Final resolved path: Map #2146356051 (Exists: False)
+Texture not found: Map #2146356051
+DEBUG: Processing image 'Map #2146356052' with filepath 'Map #2146356052'
+DEBUG: Path Map #2146356052 not found. Trying aggressive fallback.
+DEBUG: Final resolved path: Map #2146356052 (Exists: False)
+Texture not found: Map #2146356052
+DEBUG: Processing image 'Map #2146356053' with filepath 'Map #2146356053'
+DEBUG: Path Map #2146356053 not found. Trying aggressive fallback.
+DEBUG: Final resolved path: Map #2146356053 (Exists: False)
+Texture not found: Map #2146356053
+DEBUG: Processing image 'Map #2146356054' with filepath 'Map #2146356054'
+DEBUG: Path Map #2146356054 not found. Trying aggressive fallback.
+DEBUG: Final resolved path: Map #2146356054 (Exists: False)
+Texture not found: Map #2146356054
+DEBUG: Processing image 'Map #2146356055' with filepath 'Map #2146356055'
+DEBUG: Path Map #2146356055 not found. Trying aggressive fallback.
+DEBUG: Final resolved path: Map #2146356055 (Exists: False)
+Texture not found: Map #2146356055
+DEBUG: Processing image 'Map #2146356085' with filepath 'Map #2146356085'
+DEBUG: Path Map #2146356085 not found. Trying aggressive fallback.
+DEBUG: Final resolved path: Map #2146356085 (Exists: False)
+Texture not found: Map #2146356085
+DEBUG: Processing image 'Map #2146356343' with filepath 'Map #2146356343'
+DEBUG: Path Map #2146356343 not found. Trying aggressive fallback.
+DEBUG: Final resolved path: Map #2146356343 (Exists: False)
+Texture not found: Map #2146356343
+DEBUG: Processing image 'Map #2146356344' with filepath 'Map #2146356344'
+DEBUG: Path Map #2146356344 not found. Trying aggressive fallback.
+DEBUG: Final resolved path: Map #2146356344 (Exists: False)
+Texture not found: Map #2146356344
+DEBUG: Processing image 'Map #2146356345' with filepath 'Map #2146356345'
+DEBUG: Path Map #2146356345 not found. Trying aggressive fallback.
+DEBUG: Final resolved path: Map #2146356345 (Exists: False)
+Texture not found: Map #2146356345
+DEBUG: Processing image 'Map #2146356346' with filepath 'Map #2146356346'
+DEBUG: Path Map #2146356346 not found. Trying aggressive fallback.
+DEBUG: Final resolved path: Map #2146356346 (Exists: False)
+Texture not found: Map #2146356346
+DEBUG: Processing image 'Map #2146356347' with filepath 'Map #2146356347'
+DEBUG: Path Map #2146356347 not found. Trying aggressive fallback.
+DEBUG: Final resolved path: Map #2146356347 (Exists: False)
+Texture not found: Map #2146356347
+DEBUG: Processing image 'Map #2146356348' with filepath 'Map #2146356348'
+DEBUG: Path Map #2146356348 not found. Trying aggressive fallback.
+DEBUG: Final resolved path: Map #2146356348 (Exists: False)
+Texture not found: Map #2146356348
+DEBUG: Processing image 'Map #2146356349' with filepath 'E:\sample_assets_04\fiftyfourms3\maps\finist broom2_Normal.png'
+DEBUG: Path E:\sample_assets_04\fiftyfourms3\maps\finist broom2_Normal.png not found. Trying aggressive fallback.
+DEBUG: Final resolved path: E:\sample_assets_04\fiftyfourms3\maps\finist broom2_Normal.png (Exists: False)
+Texture not found: E:\sample_assets_04\fiftyfourms3\maps\finist broom2_Normal.png
+DEBUG: Processing image 'Map #2146356350' with filepath 'E:\sample_assets_04\fiftyfourms3\maps\finist broom2_Roughness.png'
+DEBUG: Path E:\sample_assets_04\fiftyfourms3\maps\finist broom2_Roughness.png not found. Trying aggressive fallback.
+DEBUG: Final resolved path: E:\sample_assets_04\fiftyfourms3\maps\finist broom2_Roughness.png (Exists: False)
+Texture not found: E:\sample_assets_04\fiftyfourms3\maps\finist broom2_Roughness.png
+DEBUG: Processing image 'Map #2146356351' with filepath 'E:\sample_assets_04\fiftyfourms3\maps\finist broom2_BaseColor.png'
+DEBUG: Path E:\sample_assets_04\fiftyfourms3\maps\finist broom2_BaseColor.png not found. Trying aggressive fallback.
+DEBUG: Final resolved path: E:\sample_assets_04\fiftyfourms3\maps\finist broom2_BaseColor.png (Exists: False)
+Texture not found: E:\sample_assets_04\fiftyfourms3\maps\finist broom2_BaseColor.png
+DEBUG: Processing image 'Map #2146356352' with filepath 'E:\sample_assets_04\fiftyfourms3\maps\finist broom2_Displacement.png'
+DEBUG: Path E:\sample_assets_04\fiftyfourms3\maps\finist broom2_Displacement.png not found. Trying aggressive fallback.
+DEBUG: Final resolved path: E:\sample_assets_04\fiftyfourms3\maps\finist broom2_Displacement.png (Exists: False)
+Texture not found: E:\sample_assets_04\fiftyfourms3\maps\finist broom2_Displacement.png
+DEBUG: Processing image 'Map #2146358434' with filepath 'Map #2146358434'
+DEBUG: Path Map #2146358434 not found. Trying aggressive fallback.
+DEBUG: Final resolved path: Map #2146358434 (Exists: False)
+Texture not found: Map #2146358434
+DEBUG: Processing image 'Map #2146358437' with filepath 'E:\sample_assets_04\fiftyfourms3\maps\Leather_color_moro.jpg'
+DEBUG: Path E:\sample_assets_04\fiftyfourms3\maps\Leather_color_moro.jpg not found. Trying aggressive fallback.
+DEBUG: Final resolved path: E:\sample_assets_04\fiftyfourms3\maps\Leather_color_moro.jpg (Exists: False)
+Texture not found: E:\sample_assets_04\fiftyfourms3\maps\Leather_color_moro.jpg
+DEBUG: Processing image 'Map #2146358438' with filepath 'Map #2146358438'
+DEBUG: Path Map #2146358438 not found. Trying aggressive fallback.
+DEBUG: Final resolved path: Map #2146358438 (Exists: False)
+Texture not found: Map #2146358438
+DEBUG: Processing image 'Map #2146358439' with filepath 'Map #2146358439'
+DEBUG: Path Map #2146358439 not found. Trying aggressive fallback.
+DEBUG: Final resolved path: Map #2146358439 (Exists: False)
+Texture not found: Map #2146358439
+DEBUG: Processing image 'Map #2146358440' with filepath 'E:\sample_assets_04\fiftyfourms3\maps\Leather_color_black.jpg'
+DEBUG: Path E:\sample_assets_04\fiftyfourms3\maps\Leather_color_black.jpg not found. Trying aggressive fallback.
+DEBUG: Final resolved path: E:\sample_assets_04\fiftyfourms3\maps\Leather_color_black.jpg (Exists: False)
+Texture not found: E:\sample_assets_04\fiftyfourms3\maps\Leather_color_black.jpg
+DEBUG: AI CHECK - gemini_key length: 53, found_textures count: 23
+DEBUG: Asking Gemini Text-LLM to map textures...
+DEBUG: Text-LLM requested VLM Fallback. Initializing Multimodal Vision LLM...
+DEBUG: Saved final texture_map.json to both E:\Asset_Library\Uncategorized\improper_FiftyFourms_Chair_Alveus Rotate and E:\sample_assets_04\fiftyfourms3
+DEBUG: LLM mapped col456.jpg to moro (Base Color)
+DEBUG: LLM mapped pict122.jpg to moro (Roughness)
+DEBUG: LLM mapped img343.png to grey_velur grey Slot #2 (Base Color)
+DEBUG: LLM mapped pic009.jpg to grey_velur grey Slot #2 (Roughness)
+DEBUG: LLM mapped pic009.jpg to velur (Base Color)
+DEBUG: LLM mapped pict22.jpg to velur (Roughness)
+DEBUG: LLM mapped col8822.tif to WOOD_CHAIR (Base Color)
+DEBUG: LLM mapped img444.jpg to WOOD_CHAIR (Roughness)
+DEBUG: LLM mapped img564.jpg to grey_velur grey Slot #5 (Base Color)
+DEBUG: LLM mapped img12.png to grey_velur grey Slot #5 (Roughness)
+DEBUG: LLM mapped col308.png to Material #-2147483567 (Base Color)
+DEBUG: LLM mapped img444.jpg to Material #227 (Base Color)
+DEBUG: LLM mapped col308.png to Material #227 (Roughness)
+DEBUG: LLM mapped col45.png to enamel (Base Color)
+DEBUG: LLM mapped col456.jpg to moro (Base Color)
+DEBUG: LLM mapped pict122.jpg to moro (Roughness)
+DEBUG: LLM mapped pic009.jpg to grey_velur grey Slot #2.001 (Base Color)
+DEBUG: LLM mapped pict22.jpg to grey_velur grey Slot #2.001 (Roughness)
+DEBUG: LLM mapped pic009.jpg to velur (Base Color)
+DEBUG: LLM mapped pict22.jpg to velur (Roughness)
+DEBUG: LLM mapped col8822.tif to WOOD_CHAIR (Base Color)
+DEBUG: LLM mapped img444.jpg to WOOD_CHAIR (Roughness)
+DEBUG: LLM mapped ima654.PNG to grey_velur grey Slot #5.001 (Base Color)
+DEBUG: LLM mapped img444.jpg to grey_velur grey Slot #5.001 (Roughness)
+DEBUG: LLM mapped col308.png to Material #-2147483567 (Base Color)
+DEBUG: LLM mapped img444.jpg to Material #227 (Base Color)
+DEBUG: LLM mapped col308.png to Material #227 (Roughness)
+DEBUG: LLM mapped col45.png to enamel (Base Color)
+DEBUG: LLM mapped col456.jpg to moro (Base Color)
+DEBUG: LLM mapped pict122.jpg to moro (Roughness)
+DEBUG: LLM mapped pic009.jpg to grey_velur grey Slot #2.002 (Base Color)
+DEBUG: LLM mapped img12.png to grey_velur grey Slot #2.002 (Roughness)
+DEBUG: LLM mapped pic009.jpg to velur (Base Color)
+DEBUG: LLM mapped pict22.jpg to velur (Roughness)
+DEBUG: LLM mapped col8822.tif to WOOD_CHAIR (Base Color)
+DEBUG: LLM mapped img444.jpg to WOOD_CHAIR (Roughness)
+DEBUG: LLM mapped pic456.png to grey_velur grey Slot #5.002 (Base Color)
+DEBUG: LLM mapped img867.png to grey_velur grey Slot #5.002 (Roughness)
+DEBUG: LLM mapped col308.png to Material #-2147483567 (Base Color)
+DEBUG: LLM mapped img444.jpg to Material #227 (Base Color)
+DEBUG: LLM mapped col308.png to Material #227 (Roughness)
+DEBUG: LLM mapped col45.png to enamel (Base Color)
+DEBUG: LLM mapped pict22.jpg to fb_3 (Base Color)
+DEBUG: LLM mapped img564.jpg to chenille Slot #2 (Base Color)
+DEBUG: LLM mapped img12.png to chenille Slot #2 (Roughness)
+DEBUG: LLM mapped pict22.jpg to fb_3 (Base Color)
+DEBUG: LLM mapped col8822.tif to WOOD_CHAIR (Base Color)
+DEBUG: LLM mapped img444.jpg to WOOD_CHAIR (Roughness)
+DEBUG: LLM mapped img564.jpg to chenille Slot #5 (Base Color)
+DEBUG: LLM mapped img12.png to chenille Slot #5 (Roughness)
+DEBUG: LLM mapped img12.png to Material #297 (Base Color)
+DEBUG: LLM mapped img867.png to Material #297 (Roughness)
+DEBUG: LLM mapped img444.jpg to Material #227 (Base Color)
+DEBUG: LLM mapped col308.png to Material #227 (Roughness)
+DEBUG: LLM mapped col45.png to enamel (Base Color)
+DEBUG: LLM mapped col123.jpg to tortora (Base Color)
+DEBUG: LLM mapped ima654.PNG to moro_boucle Slot #2 (Base Color)
+DEBUG: LLM mapped img444.jpg to moro_boucle Slot #2 (Roughness)
+DEBUG: LLM mapped pict122.jpg to gemma_115 (Base Color)
+DEBUG: LLM mapped col8822.tif to WOOD_CHAIR (Base Color)
+DEBUG: LLM mapped img444.jpg to WOOD_CHAIR (Roughness)
+DEBUG: LLM mapped pic456.png to moro_boucle Slot #5 (Base Color)
+DEBUG: LLM mapped img867.png to moro_boucle Slot #5 (Roughness)
+DEBUG: LLM mapped col006.jpg to Material #-2147483562 (Base Color)
+DEBUG: LLM mapped img444.jpg to Material #227 (Base Color)
+DEBUG: LLM mapped col308.png to Material #227 (Roughness)
+DEBUG: LLM mapped col45.png to enamel (Base Color)
+DEBUG: LLM mapped col456.jpg to moro (Base Color)
+DEBUG: LLM mapped pict122.jpg to moro (Roughness)
+DEBUG: LLM mapped img343.png to grey_velur grey Slot #2.003 (Base Color)
+DEBUG: LLM mapped pic009.jpg to grey_velur grey Slot #2.003 (Roughness)
+DEBUG: LLM mapped pic009.jpg to velur (Base Color)
+DEBUG: LLM mapped pict22.jpg to velur (Roughness)
+DEBUG: LLM mapped col8822.tif to WOOD_CHAIR (Base Color)
+DEBUG: LLM mapped img444.jpg to WOOD_CHAIR (Roughness)
+DEBUG: LLM mapped img343.png to grey_velur grey Slot #5.003 (Base Color)
+DEBUG: LLM mapped img867.png to grey_velur grey Slot #5.003 (Roughness)
+DEBUG: LLM mapped col308.png to Material #-2147483567 (Base Color)
+DEBUG: LLM mapped img444.jpg to Material #227 (Base Color)
+DEBUG: LLM mapped col308.png to Material #227 (Roughness)
+DEBUG: LLM mapped col45.png to enamel (Base Color)
+DEBUG: Saved debug blend file to E:\TEMP_asset_blend\improper_FiftyFourms_Chair_Alveus Rotate_debug.blend
+Conversion completed successfully.

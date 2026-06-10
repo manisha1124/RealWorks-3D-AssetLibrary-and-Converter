@@ -8,6 +8,13 @@ import math
 import mathutils
 from datetime import datetime
 
+DEBUG_LOG = open('debug_log.txt', 'w')
+def my_print(*args):
+    msg = ' '.join(str(a) for a in args)
+    print(msg)
+    DEBUG_LOG.write(msg + '\n')
+    DEBUG_LOG.flush()
+
 def setup_scene():
     """Clean up the default scene (remove cameras, lights, meshes)."""
     bpy.ops.wm.read_factory_settings(use_empty=True)
@@ -33,7 +40,7 @@ def import_asset(filepath):
     elif ext in ['.usd', '.usda', '.usdc', '.usdz']:
         bpy.ops.wm.usd_import(filepath=filepath)
     else:
-        print(f"Warning: Format {ext} might not have a dedicated importer or is unsupported.")
+        my_print(f"Warning: Format {ext} might not have a dedicated importer or is unsupported.")
         # Attempt generic import if possible, but for now just fail or log
         raise ValueError(f"Unsupported format: {ext}")
 
@@ -59,7 +66,7 @@ def normalize_scene():
                 bpy.ops.object.transform_apply(location=True, rotation=True, scale=True)
                 obj.select_set(False)
             except Exception as e:
-                print(f"DEBUG: Could not apply transforms to {obj.name}: {e}")
+                my_print(f"DEBUG: Could not apply transforms to {obj.name}: {e}")
 
 def sanitize_materials():
     """Fix common material export bugs (e.g. 100% metallic, pitch black diffuse, oily roughness)."""
@@ -76,7 +83,7 @@ def sanitize_materials():
             bsdf = mat.node_tree.nodes.new('ShaderNodeBsdfPrincipled')
             output = mat.node_tree.nodes.new('ShaderNodeOutputMaterial')
             mat.node_tree.links.new(bsdf.outputs['BSDF'], output.inputs['Surface'])
-            print(f"DEBUG: Forcefully rebuilt Principled BSDF for {mat.name}")
+            my_print(f"DEBUG: Forcefully rebuilt Principled BSDF for {mat.name}")
         
         # 1. Fix Accidental Latex/Metal (Metallic = 1.0 without a texture)
         if 'Metallic' in bsdf.inputs and not bsdf.inputs['Metallic'].is_linked:
@@ -95,27 +102,17 @@ def sanitize_materials():
                 # Set to a neutral clay grey so it isn't a pitch black silhouette
                 bsdf.inputs['Base Color'].default_value = (0.8, 0.8, 0.8, color[3])
 
-def heuristic_texture_linking(input_dir, dest_folder):
+def heuristic_texture_linking(input_dir, dest_folder, asset_dir, gemini_key=''):
     """Finds all loose textures in the directory, copies them over, and attempts heuristic material linking."""
     texture_exts = {'.png', '.jpg', '.jpeg', '.tif', '.tiff', '.tga', '.exr'}
     found_textures = []
     
-    dirs_to_search = [
-        input_dir, 
-        os.path.join(input_dir, 'Textures'), 
-        os.path.join(input_dir, 'textures'),
-        os.path.join(input_dir, 'Maps'),
-        os.path.join(input_dir, 'maps'),
-        os.path.join(input_dir, 'Images'),
-        os.path.join(input_dir, 'images')
-    ]
-    for d in dirs_to_search:
-        if os.path.exists(d):
-            for f in os.listdir(d):
-                if os.path.splitext(f)[1].lower() in texture_exts:
-                    abs_path = os.path.join(d, f)
-                    if abs_path not in found_textures:
-                        found_textures.append(abs_path)
+    for root, dirs, files in os.walk(input_dir):
+        for f in files:
+            if os.path.splitext(f)[1].lower() in texture_exts:
+                abs_path = os.path.join(root, f)
+                if abs_path not in found_textures:
+                    found_textures.append(abs_path)
                         
     if not found_textures:
         return 0
@@ -129,7 +126,7 @@ def heuristic_texture_linking(input_dir, dest_folder):
                 shutil.copy2(tex, new_path)
             copied_count += 1
         except Exception as e:
-            print(f"DEBUG: Failed to copy loose texture {tex}: {e}")
+            my_print(f"DEBUG: Failed to copy loose texture {tex}: {e}")
 
     # Load images into Blender to attempt heuristic material linking
     images = {}
@@ -148,76 +145,197 @@ def heuristic_texture_linking(input_dir, dest_folder):
     llm_map = None
     
     # Check if we should generate the map dynamically using Gemini
-    gemini_key = sys.argv[-1] if len(sys.argv) > 5 else ""
+    my_print(f"DEBUG: AI CHECK - gemini_key length: {len(gemini_key)}, found_textures count: {len(found_textures)}")
     if len(gemini_key) > 30 and found_textures:
-        import urllib.request, json
-        print("DEBUG: Asking Gemini to map textures...")
+        import urllib.request, urllib.error, json, time
         
-        # Collect material names
-        mat_names = [m.name for o in bpy.context.scene.objects if o.type == 'MESH' for m in o.data.materials if m]
-        mat_names = list(set(mat_names))
+        def call_gemini(payload):
+            max_retries = 3
+            for attempt in range(max_retries):
+                try:
+                    req = urllib.request.Request(f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key={gemini_key}", data=json.dumps(payload).encode('utf-8'), headers={'Content-Type': 'application/json'})
+                    with urllib.request.urlopen(req) as response:
+                        res_data = json.loads(response.read().decode('utf-8'))
+                        llm_text = res_data['candidates'][0]['content']['parts'][0]['text']
+                        llm_text = llm_text.replace('```json', '').replace('```', '').strip()
+                        return json.loads(llm_text), llm_text
+                except urllib.error.HTTPError as e:
+                    if e.code in (429, 500, 502, 503, 504) and attempt < max_retries - 1:
+                        my_print(f"DEBUG: Gemini HTTP Error {e.code}. Retrying in 10s...")
+                        time.sleep(10)
+                    else:
+                        my_print(f"DEBUG: Gemini HTTP Error {e.code}: {e.read().decode('utf-8')}")
+                        break
+                except Exception as e:
+                    my_print(f"DEBUG: Gemini API failed: {e}")
+                    break
+            return None, ""
+
+        my_print("DEBUG: Asking Gemini Text-LLM to map textures...")
+        mat_names = list(set([m.name for o in bpy.context.scene.objects if o.type == 'MESH' for m in o.data.materials if m]))
         tex_names = [os.path.basename(t) for t in found_textures]
         
-        prompt = f"""You are a 3D asset pipeline assistant.
+        prompt_stage1 = f"""You are a 3D asset pipeline assistant.
 Materials: {mat_names}
 Textures: {tex_names}
-Return a JSON object where keys are the exact Material names, and values are objects mapping socket names ('Base Color', 'Roughness', 'Metallic', 'Normal', 'Alpha', 'Emission') to exact Texture filenames. Do not use markdown."""
+Return a JSON object where keys are the exact Material names, and values are objects mapping socket names ('Base Color', 'Roughness', 'Metallic', 'Normal', 'Alpha', 'Emission') to exact Texture filenames. Do not use markdown.
+CRITICAL: If the names are completely arbitrary and meaningless (e.g. 'Mat_001' and 'IMG_123.jpg') and you cannot semantically map them with absolute confidence, DO NOT GUESS. Instead, return exactly: {{"REQUIRE_VLM": true}}"""
+
+        llm_map, raw_text = call_gemini({"contents": [{"parts": [{"text": prompt_stage1}]}], "generationConfig": {"responseMimeType": "application/json"}})
         
-        body = {"contents": [{"parts": [{"text": prompt}]}], "generationConfig": {"responseMimeType": "application/json"}}
-        import urllib.error, time
-        
-        max_retries = 3
-        for attempt in range(max_retries):
-            try:
-                # Upgraded to gemini-2.5-flash as requested
-                req = urllib.request.Request(f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key={gemini_key}", data=json.dumps(body).encode('utf-8'), headers={'Content-Type': 'application/json'})
-                with urllib.request.urlopen(req) as response:
-                    res_data = json.loads(response.read().decode('utf-8'))
-                    llm_text = res_data['candidates'][0]['content']['parts'][0]['text']
-                    llm_text = llm_text.replace('```json', '').replace('```', '').strip()
-                    
-                    # Save raw text to disk immediately to debug what the LLM actually said
-                    try:
-                        raw_path = os.path.join(input_dir, "texture_map_raw.txt")
-                        with open(raw_path, 'w') as f:
-                            f.write(llm_text)
-                    except Exception as fe:
-                        print(f"DEBUG: Failed to write raw map: {fe}")
-                        
-                    try:
-                        llm_map = json.loads(llm_text)
-                    except Exception as je:
-                        print(f"DEBUG: Failed to parse LLM JSON: {je}. Raw output was: {llm_text}")
-                        break
-                    
-                    # Save the JSON to disk so the user can debug the LLM's thought process!
-                    try:
-                        with open(texture_map_path, 'w') as f:
-                            json.dump(llm_map, f, indent=2)
-                    except:
-                        pass
-                        
-                    print("DEBUG: Successfully mapped textures via Gemini API!")
-                    break # Success, exit retry loop
-            except urllib.error.HTTPError as e:
-                error_body = e.read().decode('utf-8')
-                print(f"DEBUG: Gemini API HTTP Error {e.code}: {error_body}")
-                if e.code == 429 and attempt < max_retries - 1:
-                    print("DEBUG: Rate limited. Waiting 10 seconds before retrying...")
-                    time.sleep(10)
-                else:
-                    break
-            except Exception as e:
-                print(f"DEBUG: Gemini API mapping failed: {e}")
-                break
+        if llm_map and llm_map.get("REQUIRE_VLM"):
+            my_print("DEBUG: Text-LLM requested VLM Fallback. Initializing Multimodal Vision LLM...")
+            import base64, math, mathutils, uuid
+            palette = [
+                (1, 0, 0, 1, "Red"), (0, 1, 0, 1, "Green"), (0, 0, 1, 1, "Blue"), 
+                (1, 1, 0, 1, "Yellow"), (1, 0, 1, 1, "Magenta"), (0, 1, 1, 1, "Cyan"), 
+                (1, 0.5, 0, 1, "Orange"), (0.5, 0, 1, 1, "Purple"), (1, 0.75, 0.8, 1, "Pink"), 
+                (0.5, 1, 0, 1, "Lime"), (0, 0.5, 1, 1, "Light Blue"), (0.5, 0, 0, 1, "Maroon"), 
+                (0, 0.5, 0, 1, "Dark Green"), (0, 0, 0.5, 1, "Navy"), (0.5, 0.5, 0.5, 1, "Gray"), 
+                (1, 1, 1, 1, "White")
+            ]
             
+            mat_objects = list(set([m for o in bpy.context.scene.objects if o.type == 'MESH' for m in o.data.materials if m]))
+            color_legend = []
+            
+            # Create Emission Materials
+            neon_materials = {}
+            for idx_c, mat in enumerate(mat_objects):
+                r, g, b, a, name = palette[idx_c % len(palette)]
+                
+                # Create a perfectly flat, unshaded emission material for Eevee
+                neon = bpy.data.materials.new(name=f"VLM_Neon_{mat.name}")
+                neon.use_nodes = True
+                neon.node_tree.nodes.clear()
+                emission = neon.node_tree.nodes.new('ShaderNodeEmission')
+                emission.inputs['Color'].default_value = (r, g, b, 1.0)
+                output = neon.node_tree.nodes.new('ShaderNodeOutputMaterial')
+                neon.node_tree.links.new(emission.outputs['Emission'], output.inputs['Surface'])
+                
+                neon_materials[mat.name] = neon
+                color_legend.append(f"Material '{mat.name}' is painted {name}")
+                
+            # Swap mesh slots
+            orig_slots = []
+            for obj in bpy.context.scene.objects:
+                if obj.type == 'MESH':
+                    for i, slot in enumerate(obj.material_slots):
+                        if slot.material and slot.material.name in neon_materials:
+                            orig_slots.append((obj, i, slot.material))
+                            slot.material = neon_materials[slot.material.name]
+                
+            mask_path = os.path.join(input_dir, "vlm_mask.jpg")
+            cam_data = bpy.data.cameras.new('VLMCam')
+            cam_data.clip_end = 50000.0
+            cam_obj = bpy.data.objects.new('VLMCam', cam_data)
+            bpy.context.scene.collection.objects.link(cam_obj)
+            bpy.context.scene.camera = cam_obj
+            
+            min_co, max_co = [float('inf')]*3, [float('-inf')]*3
+            has_mesh = False
+            for obj in bpy.context.scene.objects:
+                if obj.type == 'MESH':
+                    has_mesh = True
+                    for point in obj.bound_box:
+                        world_point = obj.matrix_world @ mathutils.Vector(point)
+                        for idx_c in range(3):
+                            min_co[idx_c] = min(min_co[idx_c], world_point[idx_c])
+                            max_co[idx_c] = max(max_co[idx_c], world_point[idx_c])
+                            
+            if has_mesh:
+                center = [(max_co[idx_c] + min_co[idx_c]) / 2 for idx_c in range(3)]
+                size = max(max_co[idx_c] - min_co[idx_c] for idx_c in range(3)) if max_co[0] != float('-inf') else 10
+                cam_obj.location = (center[0], center[1] - size * 1.5, center[2] + size * 0.5)
+                direction = mathutils.Vector(center) - cam_obj.location
+                cam_obj.rotation_euler = direction.to_track_quat('-Z', 'Y').to_euler()
+            
+            prev_engine = bpy.context.scene.render.engine
+            try:
+                bpy.context.scene.render.engine = 'BLENDER_EEVEE_NEXT' # Blender 4.2+
+            except TypeError:
+                bpy.context.scene.render.engine = 'BLENDER_EEVEE' # Blender < 4.2
+            
+            bpy.context.scene.render.resolution_x = 512
+            bpy.context.scene.render.resolution_y = 512
+            bpy.context.scene.render.filepath = mask_path
+            bpy.context.scene.render.image_settings.file_format = 'JPEG'
+            
+            try:
+                bpy.ops.render.render(write_still=True)
+            except Exception as e:
+                my_print(f"DEBUG: VLM Render failed: {e}")
+                
+            bpy.context.scene.render.engine = prev_engine
+            
+            # RESTORE ORIGINAL MATERIALS
+            for obj, idx_c, mat in orig_slots:
+                obj.material_slots[idx_c].material = mat
+                
+            # Cleanup neon materials
+            for neon in neon_materials.values():
+                bpy.data.materials.remove(neon)
+                
+            parts = []
+            legend_text = "\n".join(color_legend)
+            prompt_vlm = f"""You are a 3D asset pipeline vision assistant.
+Here is a color-coded render of the 3D model:
+{legend_text}
+
+I will also provide the texture images found in the folder.
+Return a JSON object where keys are the exact Material names, and values are objects mapping socket names ('Base Color', 'Roughness', 'Metallic', 'Normal', 'Alpha', 'Emission') to exact Texture filenames. Do not use markdown."""
+            parts.append({"text": prompt_vlm})
+            
+            if os.path.exists(mask_path):
+                with open(mask_path, "rb") as f:
+                    b64 = base64.b64encode(f.read()).decode('utf-8')
+                    parts.append({"inlineData": {"mimeType": "image/jpeg", "data": b64}})
+                    
+            for tex in found_textures:
+                parts.append({"text": f"Texture filename: {os.path.basename(tex)}"})
+                try:
+                    img = bpy.data.images.load(tex)
+                    temp_img = img.copy()
+                    temp_img.scale(512, 512)
+                    temp_tex = os.path.join(input_dir, f"vlm_temp_{uuid.uuid4().hex[:6]}.jpg")
+                    temp_img.filepath_raw = temp_tex
+                    temp_img.file_format = 'JPEG'
+                    temp_img.save()
+                    with open(temp_tex, "rb") as f:
+                        b64 = base64.b64encode(f.read()).decode('utf-8')
+                        parts.append({"inlineData": {"mimeType": "image/jpeg", "data": b64}})
+                    os.remove(temp_tex)
+                    bpy.data.images.remove(temp_img)
+                    bpy.data.images.remove(img)
+                except Exception as e:
+                    pass
+                    
+            bpy.data.objects.remove(cam_obj)
+            if os.path.exists(mask_path):
+                os.remove(mask_path)
+                
+            llm_map, raw_text = call_gemini({"contents": [{"parts": parts}], "generationConfig": {"responseMimeType": "application/json"}})
+            
+        if llm_map and not llm_map.get("REQUIRE_VLM"):
+            try:
+                raw_path = os.path.join(asset_dir, "texture_map_raw.txt")
+                with open(raw_path, 'w') as f: f.write(raw_text)
+                
+                texture_map_path = os.path.join(asset_dir, "texture_map.json")
+                with open(texture_map_path, 'w') as f: json.dump(llm_map, f, indent=2)
+                
+                texture_map_path_og = os.path.join(input_dir, "texture_map.json")
+                with open(texture_map_path_og, 'w') as f: json.dump(llm_map, f, indent=2)
+                
+                my_print(f"DEBUG: Saved final texture_map.json to both {asset_dir} and {input_dir}")
+            except Exception as e: 
+                my_print(f"DEBUG: Error saving map: {e}")
     elif os.path.exists(texture_map_path):
         try:
             with open(texture_map_path, 'r') as f:
                 llm_map = json.load(f)
-            print("DEBUG: Successfully loaded LLM texture map!")
+            my_print("DEBUG: Successfully loaded LLM texture map!")
         except Exception as e:
-            print(f"DEBUG: Failed to load texture_map.json: {e}")
+            my_print(f"DEBUG: Failed to load texture_map.json: {e}")
 
     # Heuristic linking: Map textures to object's principled BSDF based on name overlap
     for obj in bpy.context.scene.objects:
@@ -247,9 +365,9 @@ Return a JSON object where keys are the exact Material names, and values are obj
                 bpy.ops.object.mode_set(mode='OBJECT')
                 obj.select_set(False)
                 has_uv = True
-                print(f"DEBUG: Generated Cube UV Map for {obj.name}")
+                my_print(f"DEBUG: Generated Cube UV Map for {obj.name}")
             except Exception as e:
-                print(f"DEBUG: Failed to generate UV map for {obj.name}: {e}")
+                my_print(f"DEBUG: Failed to generate UV map for {obj.name}: {e}")
                 if bpy.context.object and bpy.context.object.mode != 'OBJECT':
                     bpy.ops.object.mode_set(mode='OBJECT')
         
@@ -336,7 +454,7 @@ Return a JSON object where keys are the exact Material names, and values are obj
                                     mat.blend_method = 'HASHED'
                             else:
                                 mat.node_tree.links.new(tex_node.outputs['Color'], bsdf.inputs[socket_name])
-                            print(f"DEBUG: LLM mapped {img.name} to {mat.name} ({socket_name})")
+                            my_print(f"DEBUG: LLM mapped {img.name} to {mat.name} ({socket_name})")
                 continue # Skip fuzzy logic for this material since LLM handled it!
 
             mesh_count = len([o for o in bpy.context.scene.objects if o.type == 'MESH'])
@@ -381,14 +499,14 @@ Return a JSON object where keys are the exact Material names, and values are obj
                     best_img = cands[0][2]
                     tex_node = add_mapped_texture(best_img, is_color=True)
                     mat.node_tree.links.new(tex_node.outputs['Color'], bsdf.inputs['Base Color'])
-                    print(f"DEBUG: Fuzzy linked {best_img.name} to {mat.name} on {obj.name} (Base Color)")
+                    my_print(f"DEBUG: Fuzzy linked {best_img.name} to {mat.name} on {obj.name} (Base Color)")
                 elif mesh_count == 1:
                     # Greedy fallback
                     diffuse_cands = [i for t, i in images.items() if any(k in t for k in target_kws) and not any(k in t for k in penalty_kws)]
                     if len(diffuse_cands) == 1:
                         tex_node = add_mapped_texture(diffuse_cands[0], is_color=True)
                         mat.node_tree.links.new(tex_node.outputs['Color'], bsdf.inputs['Base Color'])
-                        print(f"DEBUG: Greedy Fallback linked {diffuse_cands[0].name} to {mat.name} (Base Color)")
+                        my_print(f"DEBUG: Greedy Fallback linked {diffuse_cands[0].name} to {mat.name} (Base Color)")
                         
             # 2. Normal Map
             if 'Normal' in bsdf.inputs and not is_validly_linked(bsdf.inputs['Normal']):
@@ -409,7 +527,7 @@ Return a JSON object where keys are the exact Material names, and values are obj
                     normal_map = mat.node_tree.nodes.new('ShaderNodeNormalMap')
                     mat.node_tree.links.new(tex_node.outputs['Color'], normal_map.inputs['Color'])
                     mat.node_tree.links.new(normal_map.outputs['Normal'], bsdf.inputs['Normal'])
-                    print(f"DEBUG: Fuzzy linked {best_img.name} to {mat.name} on {obj.name} (Normal)")
+                    my_print(f"DEBUG: Fuzzy linked {best_img.name} to {mat.name} on {obj.name} (Normal)")
                 elif mesh_count == 1:
                     norm_cands = [i for t, i in images.items() if any(k in t for k in target_kws) and not any(k in t for k in penalty_kws)]
                     if len(norm_cands) == 1:
@@ -417,7 +535,7 @@ Return a JSON object where keys are the exact Material names, and values are obj
                         normal_map = mat.node_tree.nodes.new('ShaderNodeNormalMap')
                         mat.node_tree.links.new(tex_node.outputs['Color'], normal_map.inputs['Color'])
                         mat.node_tree.links.new(normal_map.outputs['Normal'], bsdf.inputs['Normal'])
-                        print(f"DEBUG: Greedy Fallback linked {norm_cands[0].name} to {mat.name} (Normal)")
+                        my_print(f"DEBUG: Greedy Fallback linked {norm_cands[0].name} to {mat.name} (Normal)")
                         
             # 3. Opacity / Alpha
             if 'Alpha' in bsdf.inputs and not is_validly_linked(bsdf.inputs['Alpha']):
@@ -438,7 +556,7 @@ Return a JSON object where keys are the exact Material names, and values are obj
                     mat.node_tree.links.new(tex_node.outputs['Color'], bsdf.inputs['Alpha'])
                     if hasattr(mat, 'blend_method'):
                         mat.blend_method = 'HASHED'
-                    print(f"DEBUG: Fuzzy linked {best_img.name} to {mat.name} on {obj.name} (Alpha)")
+                    my_print(f"DEBUG: Fuzzy linked {best_img.name} to {mat.name} on {obj.name} (Alpha)")
                 elif mesh_count == 1:
                     alpha_cands = [i for t, i in images.items() if any(k in t for k in target_kws) and not any(k in t for k in penalty_kws)]
                     if len(alpha_cands) == 1:
@@ -446,7 +564,7 @@ Return a JSON object where keys are the exact Material names, and values are obj
                         mat.node_tree.links.new(tex_node.outputs['Color'], bsdf.inputs['Alpha'])
                         if hasattr(mat, 'blend_method'):
                             mat.blend_method = 'HASHED'
-                        print(f"DEBUG: Greedy Fallback linked {alpha_cands[0].name} to {mat.name} (Alpha)")
+                        my_print(f"DEBUG: Greedy Fallback linked {alpha_cands[0].name} to {mat.name} (Alpha)")
 
     return copied_count
 
@@ -460,7 +578,7 @@ def collect_and_relink_textures(dest_folder, input_file):
     
     for img in bpy.data.images:
         if img.source == 'FILE' and img.filepath:
-            print(f"DEBUG: Processing image '{img.name}' with filepath '{img.filepath}'")
+            my_print(f"DEBUG: Processing image '{img.name}' with filepath '{img.filepath}'")
             # Resolve relative paths ('//') against the input file's directory instead of CWD
             if img.filepath.startswith('//'):
                 rel_path = img.filepath[2:]
@@ -469,7 +587,7 @@ def collect_and_relink_textures(dest_folder, input_file):
                 abs_path = bpy.path.abspath(img.filepath)
 
             if not os.path.exists(abs_path):
-                print(f"DEBUG: Path {abs_path} not found. Trying aggressive fallback.")
+                my_print(f"DEBUG: Path {abs_path} not found. Trying aggressive fallback.")
                 basename = os.path.basename(img.filepath.replace('\\', '/'))
                 alt1 = os.path.join(input_dir, basename)
                 alt2 = os.path.join(input_dir, "Textures", basename)
@@ -483,7 +601,7 @@ def collect_and_relink_textures(dest_folder, input_file):
                     alt4 = os.path.join(input_dir, img.name)
                     if os.path.exists(alt4): abs_path = alt4
             
-            print(f"DEBUG: Final resolved path: {abs_path} (Exists: {os.path.exists(abs_path)})")
+            my_print(f"DEBUG: Final resolved path: {abs_path} (Exists: {os.path.exists(abs_path)})")
             
             if os.path.exists(abs_path):
                 # Copy to textures folder
@@ -496,9 +614,9 @@ def collect_and_relink_textures(dest_folder, input_file):
                     img.filepath = new_path
                     texture_count += 1
                 except Exception as e:
-                    print(f"Failed to copy texture {abs_path}: {e}")
+                    my_print(f"Failed to copy texture {abs_path}: {e}")
             else:
-                print(f"Texture not found: {abs_path}")
+                my_print(f"Texture not found: {abs_path}")
                 
     return texture_count
 
@@ -579,12 +697,12 @@ def generate_thumbnail(dest_path):
 def main():
     argv = sys.argv
     if "--" not in argv:
-        print("Error: Missing arguments after '--'")
+        my_print("Error: Missing arguments after '--'")
         sys.exit(1)
         
     args = argv[argv.index("--") + 1:]
     if len(args) < 2:
-        print("Usage: blender --background --python convert.py -- <input_file> <output_dir> <category>")
+        my_print("Usage: blender --background --python convert.py -- <input_file> <output_dir> <category>")
         sys.exit(1)
         
     input_file = args[0]
@@ -598,7 +716,7 @@ def main():
     asset_name = os.path.splitext(filename)[0]
     source_format = os.path.splitext(filename)[1].lower().replace(".", "")
     
-    print(f"Starting conversion for: {input_file}")
+    my_print(f"Starting conversion for: {input_file}")
     
     # Create output directory
     asset_dir = os.path.join(output_dir, category, asset_name)
@@ -615,7 +733,7 @@ def main():
         texture_count = collect_and_relink_textures(textures_dir, input_file)
         
         # Run heuristic fallback for missing textures
-        heuristic_count = heuristic_texture_linking(os.path.dirname(os.path.abspath(input_file)), textures_dir)
+        heuristic_count = heuristic_texture_linking(os.path.dirname(os.path.abspath(input_file)), textures_dir, asset_dir, gemini_api_key)
         texture_count = max(texture_count, heuristic_count)
         
         # Save debug .blend file if requested
@@ -623,9 +741,9 @@ def main():
             try:
                 debug_file = os.path.join(debug_blend_path, f"{asset_name}_debug.blend")
                 bpy.ops.wm.save_as_mainfile(filepath=debug_file)
-                print(f"DEBUG: Saved debug blend file to {debug_file}")
+                my_print(f"DEBUG: Saved debug blend file to {debug_file}")
             except Exception as e:
-                print(f"DEBUG: Failed to save debug blend file: {e}")
+                my_print(f"DEBUG: Failed to save debug blend file: {e}")
         
         # Export USD
         usd_path = os.path.join(asset_dir, "asset.usd")
@@ -657,12 +775,14 @@ def main():
         with open(os.path.join(asset_dir, "metadata.json"), 'w') as f:
             json.dump(metadata, f, indent=2)
             
-        print("Conversion completed successfully.")
+        my_print("Conversion completed successfully.")
         
     except Exception as e:
         import traceback
-        print(f"Conversion failed: {e}")
+        my_print(f"Conversion failed: {e}")
         traceback.print_exc()
+        with open('crash_log.txt', 'w') as crashf:
+            crashf.write(traceback.format_exc())
         sys.exit(1)
 
 if __name__ == "__main__":
