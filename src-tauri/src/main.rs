@@ -240,8 +240,16 @@ async fn convert_asset(path: String, is_batch: bool, state: State<'_, AppState>,
             .map_err(|e| format!("Failed to execute blender: {}", e))?;
 
         if !output.status.success() {
-            let stderr = String::from_utf8_lossy(&output.stderr);
-            let stdout = String::from_utf8_lossy(&output.stdout);
+            let mut stderr = String::from_utf8_lossy(&output.stderr).to_string();
+            let mut stdout = String::from_utf8_lossy(&output.stdout).to_string();
+            
+            if stdout.len() > 1000 {
+                stdout = format!("{}... [TRUNCATED, length: {}]", stdout.chars().take(1000).collect::<String>(), stdout.len());
+            }
+            if stderr.len() > 1000 {
+                stderr = format!("{}... [TRUNCATED, length: {}]", stderr.chars().take(1000).collect::<String>(), stderr.len());
+            }
+            
             return Err(format!("Blender conversion failed.\nStdout: {}\nStderr: {}", stdout, stderr));
         }
 

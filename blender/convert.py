@@ -8,7 +8,10 @@ import math
 import mathutils
 from datetime import datetime
 
-DEBUG_LOG = open('debug_log.txt', 'w')
+import os
+import tempfile
+log_path = os.path.join(tempfile.gettempdir(), 'usd_converter_debug_log.txt')
+DEBUG_LOG = open(log_path, 'w')
 def my_print(*args):
     msg = ' '.join(str(a) for a in args)
     print(msg)
@@ -113,6 +116,25 @@ def heuristic_texture_linking(input_dir, dest_folder, asset_dir, gemini_key=''):
                 abs_path = os.path.join(root, f)
                 if abs_path not in found_textures:
                     found_textures.append(abs_path)
+                    
+    # If no textures found, try common sibling texture folders in the parent directory
+    if not found_textures:
+        parent_dir = os.path.dirname(input_dir)
+        if parent_dir and os.path.splitdrive(parent_dir)[1] not in ('\\', '/'):
+            common_tex_folders = ['textures', 'tex', 'maps', 'materials', 'images', 'matlibs']
+            try:
+                for item in os.listdir(parent_dir):
+                    if item.lower() in common_tex_folders:
+                        tex_dir = os.path.join(parent_dir, item)
+                        if os.path.isdir(tex_dir):
+                            for root, dirs, files in os.walk(tex_dir):
+                                for f in files:
+                                    if os.path.splitext(f)[1].lower() in texture_exts:
+                                        abs_path = os.path.join(root, f)
+                                        if abs_path not in found_textures:
+                                            found_textures.append(abs_path)
+            except Exception as e:
+                my_print(f"DEBUG: Failed to scan parent directory for sibling textures: {e}")
                         
     if not found_textures:
         return 0
@@ -314,6 +336,8 @@ Return a JSON object where keys are the exact Material names, and values are obj
                 os.remove(mask_path)
                 
             llm_map, raw_text = call_gemini({"contents": [{"parts": parts}], "generationConfig": {"responseMimeType": "application/json"}})
+            if llm_map:
+                llm_map["_WAS_VLM_GENERATED"] = True
             
         if llm_map and not llm_map.get("REQUIRE_VLM"):
             try:
@@ -439,6 +463,28 @@ Return a JSON object where keys are the exact Material names, and values are obj
                         # Find the image object
                         img = next((i for name, i in images.items() if i.name == tex_filename or os.path.basename(i.filepath) == tex_filename), None)
                         if img:
+                            # Rename improper images ONLY if VLM mapped them
+                            old_filepath = bpy.path.abspath(img.filepath)
+                            if "tex_renamed" not in img.keys() and llm_map.get("_WAS_VLM_GENERATED", False):
+                                new_name = f"{mat.name}_{socket_name.replace(' ', '')}{os.path.splitext(old_filepath)[1]}"
+                                new_name = "".join(c for c in new_name if c.isalnum() or c in "._- ")
+                                new_filepath = os.path.join(os.path.dirname(old_filepath), new_name)
+                                
+                                if old_filepath != new_filepath and os.path.exists(old_filepath):
+                                    try:
+                                        os.rename(old_filepath, new_filepath)
+                                        # Rename copied version in dest_folder
+                                        copied_old = os.path.join(dest_folder, os.path.basename(old_filepath))
+                                        copied_new = os.path.join(dest_folder, new_name)
+                                        if os.path.exists(copied_old):
+                                            os.rename(copied_old, copied_new)
+                                        img.filepath = new_filepath
+                                        img.name = new_name
+                                        img["tex_renamed"] = 1
+                                        my_print(f"DEBUG: Renamed texture to {new_name}")
+                                    except Exception as e:
+                                        my_print(f"DEBUG: Failed to rename texture: {e}")
+                                        
                             is_color = socket_name in ['Base Color', 'Emission']
                             tex_node = add_mapped_texture(img, is_color=is_color)
                             
@@ -711,7 +757,6 @@ def main():
     debug_blend_path = args[3] if len(args) > 3 else ""
     gemini_api_key = args[4] if len(args) > 4 else ""
     
-    asset_id = str(uuid.uuid4())
     filename = os.path.basename(input_file)
     asset_name = os.path.splitext(filename)[0]
     source_format = os.path.splitext(filename)[1].lower().replace(".", "")
@@ -722,6 +767,18 @@ def main():
     asset_dir = os.path.join(output_dir, category, asset_name)
     os.makedirs(asset_dir, exist_ok=True)
     textures_dir = os.path.join(asset_dir, "textures")
+    
+    asset_id = str(uuid.uuid4())
+    metadata_path = os.path.join(asset_dir, "metadata.json")
+    if os.path.exists(metadata_path):
+        try:
+            with open(metadata_path, 'r') as f:
+                existing_meta = json.load(f)
+                if "id" in existing_meta:
+                    asset_id = existing_meta["id"]
+                    my_print(f"DEBUG: Preserving existing asset ID {asset_id}")
+        except Exception:
+            pass
     
     try:
         setup_scene()
@@ -781,7 +838,8 @@ def main():
         import traceback
         my_print(f"Conversion failed: {e}")
         traceback.print_exc()
-        with open('crash_log.txt', 'w') as crashf:
+        crash_path = os.path.join(tempfile.gettempdir(), 'usd_converter_crash_log.txt')
+        with open(crash_path, 'w') as crashf:
             crashf.write(traceback.format_exc())
         sys.exit(1)
 
