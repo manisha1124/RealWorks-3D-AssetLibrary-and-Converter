@@ -2,6 +2,7 @@ import React, { createContext, useContext, useState, useEffect } from "react";
 import { toast } from "sonner";
 import { invoke, convertFileSrc } from "@tauri-apps/api/core";
 import { open } from "@tauri-apps/plugin-dialog";
+import { listen } from "@tauri-apps/api/event";
 
 export type AssetStatus = "Library" | "Queued" | "Processing" | "Completed" | "Failed" | "Cancelled";
 
@@ -61,6 +62,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const [availableTags, setAvailableTags] = useState<string[]>(["interior", "exterior", "modern", "vintage", "organic", "hard-surface", "rigged"]);
   const [assets, setAssets] = useState<Asset[]>([]);
   const [logs, setLogs] = useState<LogEntry[]>([]);
+  const [currentJobId, setCurrentJobId] = useState<string | null>(null);
 
   const queue = assets.filter(a => a.status === "Queued");
   const processing = assets.filter(a => a.status === "Processing");
@@ -106,10 +108,46 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     loadAssets();
   }, []);
 
+  useEffect(() => {
+    const unlisten = listen('queue-manifest', (event) => {
+      const manifest = event.payload as { name: string, category: string }[];
+      
+      setAssets(prev => {
+        // Remove the generic "Processing" item (e.g. the single .blend file)
+        let newAssets = prev.filter(a => a.id !== currentJobId);
+        
+        // Add all segmented assets to the queue
+        const segmentedAssets = manifest.map((item, index) => ({
+          id: `segment-${Date.now()}-${index}`,
+          name: item.name,
+          category: item.category,
+          tags: [],
+          sourceFormat: "usd",
+          dateAdded: new Date().toISOString(),
+          thumbnail: "",
+          status: "Processing" as const,
+          progress: 0,
+          path: ""
+        }));
+        
+        return [...newAssets, ...segmentedAssets];
+      });
+      
+      addLog("System", "Info", `Scene segmented into ${manifest.length} assets.`);
+    });
+    
+    return () => {
+      unlisten.then(f => f());
+    };
+  }, [currentJobId]);
+
   const convertAsset = async (path: string, isBatch = false) => {
     const assetName = path.split(/[\\/]/).pop() || path;
+    const jobId = "job-" + Date.now();
+    setCurrentJobId(jobId);
+    
     const newAsset: Asset = {
-      id: "asset-" + Date.now(),
+      id: jobId,
       name: assetName,
       category: "Uncategorized",
       tags: [],
@@ -127,15 +165,15 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     try {
       await invoke('convert_asset', { path, isBatch });
       addLog(assetName, "Info", "Successfully converted.");
-      toast.success(`Converted ${assetName} successfully`);
+      toast.success(`Conversion batch completed successfully`);
       
-      setAssets(prev => prev.filter(a => a.id !== newAsset.id));
+      setAssets(prev => prev.filter(a => a.status !== "Processing"));
       loadAssets(); // Reload library from DB
     } catch (e) {
       console.error('Conversion failed', e);
       addLog(assetName, "Error", `Conversion failed: ${e}`);
       toast.error(`Failed to convert ${assetName}`);
-      updateAssetStatus(newAsset.id, "Failed");
+      setAssets(prev => prev.map(a => a.status === "Processing" ? { ...a, status: "Failed", progress: 0 } : a));
     }
   };
 
@@ -145,7 +183,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         multiple: false,
         filters: [{
           name: '3D Models',
-          extensions: ['fbx', 'obj', 'glb', 'gltf', 'blend', 'dae', 'stl', 'ply', 'usd', 'usda', 'usdz']
+          extensions: ['fbx', 'obj', 'glb', 'gltf', 'blend', 'dae', 'stl', 'ply', 'usd', 'usda', 'usdz', 'max', 'dxf', 'igs', 'iges', 'step', '3ds']
         }]
       });
       if (selected) {

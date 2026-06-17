@@ -177,14 +177,17 @@ fn get_assets(state: State<AppState>) -> Result<Vec<Asset>, String> {
 
 #[tauri::command]
 async fn convert_asset(path: String, is_batch: bool, state: State<'_, AppState>, _app: AppHandle) -> Result<(), String> {
+    use tokio::process::Command;
+    use tokio::io::{AsyncBufReadExt, BufReader};
+    use std::process::Stdio;
+    use tauri::Emitter;
+
     let settings = state.settings.lock().unwrap().clone();
     
     if settings.blender_path.is_empty() || settings.library_path.is_empty() {
         return Err("Blender path or library path is not configured".into());
     }
 
-    // In batch mode, path is a directory. For simplicity in MVP, we just handle single files via this command.
-    // The frontend should ideally read the dir and call this command per file, or we handle it here.
     let paths_to_process = if is_batch {
         let mut files = Vec::new();
         if let Ok(entries) = fs::read_dir(&path) {
@@ -193,7 +196,7 @@ async fn convert_asset(path: String, is_batch: bool, state: State<'_, AppState>,
                 if p.is_file() {
                     if let Some(ext) = p.extension().and_then(|s| s.to_str()) {
                         let ext = ext.to_lowercase();
-                        if ["fbx", "obj", "glb", "gltf", "blend", "dae", "stl", "ply", "usd", "usda", "usdz"].contains(&ext.as_str()) {
+                        if ["fbx", "obj", "glb", "gltf", "blend", "dae", "stl", "ply", "usd", "usda", "usdz", "max", "dxf", "igs", "iges", "step", "3ds"].contains(&ext.as_str()) {
                             files.push(p.to_string_lossy().to_string());
                         }
                     }
@@ -205,14 +208,9 @@ async fn convert_asset(path: String, is_batch: bool, state: State<'_, AppState>,
         vec![path]
     };
 
-
-        
-    // In dev mode, blender/convert.py is in the root workspace. Let's use the absolute path if available or relative
-    // For MVP, assume it's in the current working directory under blender/convert.py
     let current_dir = std::env::current_dir().unwrap();
     let mut script_path = current_dir.join("blender").join("convert.py");
     
-    // If running from src-tauri during dev mode, check the parent directory
     if !script_path.exists() {
         if let Some(parent) = current_dir.parent() {
             script_path = parent.join("blender").join("convert.py");
@@ -226,7 +224,7 @@ async fn convert_asset(path: String, is_batch: bool, state: State<'_, AppState>,
     for file_path in paths_to_process {
         println!("Converting {}", file_path);
         
-        let output = Command::new(&settings.blender_path)
+        let mut child = Command::new(&settings.blender_path)
             .arg("--background")
             .arg("--python")
             .arg(&script_path)
@@ -236,47 +234,72 @@ async fn convert_asset(path: String, is_batch: bool, state: State<'_, AppState>,
             .arg("Uncategorized")
             .arg(&settings.debug_blend_path)
             .arg(&settings.gemini_api_key)
-            .output()
-            .map_err(|e| format!("Failed to execute blender: {}", e))?;
+            .stdout(Stdio::piped())
+            .stderr(Stdio::piped())
+            .spawn()
+            .map_err(|e| format!("Failed to spawn blender: {}", e))?;
 
-        if !output.status.success() {
-            let mut stderr = String::from_utf8_lossy(&output.stderr).to_string();
-            let mut stdout = String::from_utf8_lossy(&output.stdout).to_string();
+        let stdout = child.stdout.take().unwrap();
+        let mut reader = BufReader::new(stdout).lines();
+        
+        let mut generated_assets = Vec::new();
+        let mut raw_stdout = String::new();
+
+        while let Ok(Some(line)) = reader.next_line().await {
+            raw_stdout.push_str(&line);
+            raw_stdout.push('\n');
             
-            if stdout.len() > 1000 {
-                stdout = format!("{}... [TRUNCATED, length: {}]", stdout.chars().take(1000).collect::<String>(), stdout.len());
+            if line.starts_with("QUEUE_MANIFEST: ") {
+                let json_str = line.trim_start_matches("QUEUE_MANIFEST: ");
+                if let Ok(manifest) = serde_json::from_str::<Vec<serde_json::Value>>(json_str) {
+                    for item in &manifest {
+                        if let (Some(name), Some(cat)) = (item["name"].as_str(), item["category"].as_str()) {
+                            generated_assets.push((name.to_string(), cat.to_string()));
+                        }
+                    }
+                    // Emit event to frontend
+                    let _ = _app.emit("queue-manifest", manifest.clone());
+                }
             }
-            if stderr.len() > 1000 {
-                stderr = format!("{}... [TRUNCATED, length: {}]", stderr.chars().take(1000).collect::<String>(), stderr.len());
+        }
+        
+        let status = child.wait().await.map_err(|e| format!("Failed to wait: {}", e))?;
+
+        if !status.success() {
+            if raw_stdout.len() > 1000 {
+                raw_stdout = format!("{}... [TRUNCATED, length: {}]", raw_stdout.chars().take(1000).collect::<String>(), raw_stdout.len());
             }
-            
-            return Err(format!("Blender conversion failed.\nStdout: {}\nStderr: {}", stdout, stderr));
+            return Err(format!("Blender conversion failed.\nStdout: {}", raw_stdout));
         }
 
-        // The python script creates the metadata.json inside the output directory.
-        // Let's read it and insert it into the database.
-        let asset_name = Path::new(&file_path).file_stem().unwrap().to_string_lossy().to_string();
-        let metadata_path = Path::new(&settings.library_path).join("Uncategorized").join(&asset_name).join("metadata.json");
-        
-        if metadata_path.exists() {
-            if let Ok(content) = fs::read_to_string(&metadata_path) {
-                if let Ok(metadata) = serde_json::from_str::<serde_json::Value>(&content) {
-                    let id = metadata["id"].as_str().map(|s| s.to_string()).unwrap_or_else(|| Uuid::new_v4().to_string());
-                    let name = metadata["name"].as_str().unwrap_or(&asset_name).to_string();
-                    let category = metadata["category"].as_str().unwrap_or("Uncategorized").to_string();
-                    let tags = metadata["tags"].as_array().map(|a| a.iter().filter_map(|v| v.as_str()).collect::<Vec<_>>().join(",")).unwrap_or_default();
-                    let source_format = metadata["source_format"].as_str().unwrap_or("").to_string();
-                    let thumbnail = metadata["thumbnail"].as_str().unwrap_or("").to_string();
-                    let asset_path = metadata["asset_path"].as_str().unwrap_or("").to_string();
-                    let animated = metadata["animated"].as_bool().unwrap_or(false);
-                    let created_at = Utc::now().to_rfc3339();
+        if generated_assets.is_empty() {
+            let asset_name = Path::new(&file_path).file_stem().unwrap().to_string_lossy().to_string();
+            generated_assets.push((asset_name, "Uncategorized".to_string()));
+        }
 
-                    let conn = state.db.lock().unwrap();
-                    let _ = conn.execute(
-                        "INSERT OR REPLACE INTO assets (id, name, category, tags, path, thumbnail, source_format, animated, created_at) 
-                         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9)",
-                        params![id, name, category, tags, asset_path, thumbnail, source_format, animated, created_at],
-                    );
+        for (asset_name, category) in generated_assets {
+            let metadata_path = Path::new(&settings.library_path).join(&category).join(&asset_name).join("metadata.json");
+            
+            if metadata_path.exists() {
+                if let Ok(content) = fs::read_to_string(&metadata_path) {
+                    if let Ok(metadata) = serde_json::from_str::<serde_json::Value>(&content) {
+                        let id = metadata["id"].as_str().map(|s| s.to_string()).unwrap_or_else(|| Uuid::new_v4().to_string());
+                        let name = metadata["name"].as_str().unwrap_or(&asset_name).to_string();
+                        let category = metadata["category"].as_str().unwrap_or(&category).to_string();
+                        let tags = metadata["tags"].as_array().map(|a| a.iter().filter_map(|v| v.as_str()).collect::<Vec<_>>().join(",")).unwrap_or_default();
+                        let source_format = metadata["source_format"].as_str().unwrap_or("").to_string();
+                        let thumbnail = metadata["thumbnail"].as_str().unwrap_or("").to_string();
+                        let asset_path = metadata["asset_path"].as_str().unwrap_or("").to_string();
+                        let animated = metadata["animated"].as_bool().unwrap_or(false);
+                        let created_at = Utc::now().to_rfc3339();
+
+                        let conn = state.db.lock().unwrap();
+                        let _ = conn.execute(
+                            "INSERT OR REPLACE INTO assets (id, name, category, tags, path, thumbnail, source_format, animated, created_at) 
+                             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9)",
+                            params![id, name, category, tags, asset_path, thumbnail, source_format, animated, created_at],
+                        );
+                    }
                 }
             }
         }

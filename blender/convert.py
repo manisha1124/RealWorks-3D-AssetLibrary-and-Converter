@@ -9,9 +9,26 @@ import mathutils
 from datetime import datetime
 
 import os
+import sys
 import tempfile
-log_path = os.path.join(tempfile.gettempdir(), 'usd_converter_debug_log.txt')
-DEBUG_LOG = open(log_path, 'w')
+
+# Attempt to extract output_dir from sys.argv early to save the log there
+log_dir = tempfile.gettempdir()
+if "--" in sys.argv:
+    try:
+        args_after = sys.argv[sys.argv.index("--") + 1:]
+        if len(args_after) >= 2:
+            log_dir = args_after[1]
+    except Exception:
+        pass
+
+log_path = os.path.join(log_dir, 'usd_converter_debug_log.txt')
+try:
+    DEBUG_LOG = open(log_path, 'w')
+except Exception:
+    log_path = os.path.join(tempfile.gettempdir(), 'usd_converter_debug_log.txt')
+    DEBUG_LOG = open(log_path, 'w')
+    
 def my_print(*args):
     msg = ' '.join(str(a) for a in args)
     print(msg)
@@ -20,7 +37,15 @@ def my_print(*args):
 
 def setup_scene():
     """Clean up the default scene (remove cameras, lights, meshes)."""
-    bpy.ops.wm.read_factory_settings(use_empty=True)
+    # DO NOT use read_factory_settings as it unloads user extensions like io_scene_max!
+    for obj in bpy.context.scene.objects:
+        bpy.data.objects.remove(obj, do_unlink=True)
+    for block in bpy.data.meshes:
+        bpy.data.meshes.remove(block)
+    for block in bpy.data.materials:
+        bpy.data.materials.remove(block)
+    for block in bpy.data.images:
+        bpy.data.images.remove(block)
     
 def import_asset(filepath):
     """Import the asset based on its extension."""
@@ -42,9 +67,56 @@ def import_asset(filepath):
         bpy.ops.wm.ply_import(filepath=filepath)
     elif ext in ['.usd', '.usda', '.usdc', '.usdz']:
         bpy.ops.wm.usd_import(filepath=filepath)
+    elif ext == '.dxf':
+        try: bpy.ops.preferences.addon_enable(module='io_import_dxf')
+        except: pass
+        bpy.ops.import_scene.dxf(filepath=filepath)
+    elif ext == '.3ds':
+        try:
+            bpy.ops.import_scene.max3ds(filepath=filepath)
+        except AttributeError:
+            try:
+                bpy.ops.import_scene.autodesk_3ds(filepath=filepath)
+            except AttributeError:
+                my_print(f"Error: The .3ds importer extension is missing! Please install the 'Import Autodesk 3DS (.3ds)' extension from Blender Preferences -> Get Extensions.")
+                raise
+    elif ext == '.max':
+        try:
+            bpy.ops.import_scene.max(filepath=filepath)
+        except Exception as e:
+            try:
+                bpy.ops.import_scene.autodesk_max(filepath=filepath)
+            except Exception as e2:
+                my_print(f"Warning: Failed to import MAX using known operators. ({e}, {e2})")
+                raise
+    elif ext in ['.step', '.igs', '.iges']:
+        import tempfile
+        import subprocess
+        import uuid
+        obj_path = os.path.join(tempfile.gettempdir(), f"freecad_temp_{uuid.uuid4().hex[:8]}.obj")
+        freecad_exe = r"D:\FreeCAD\bin\FreeCADCmd.exe"
+        if not os.path.exists(freecad_exe):
+            freecad_exe = r"D:\FreeCAD\bin\freecad.exe"
+            
+        script = f'''import FreeCAD, Import, Mesh
+doc = FreeCAD.newDocument()
+Import.insert(r"{filepath}", doc.Name)
+Mesh.export(doc.Objects, r"{obj_path}")'''
+        
+        script_path = os.path.join(tempfile.gettempdir(), f"fc_script_{uuid.uuid4().hex[:8]}.py")
+        with open(script_path, 'w') as f: f.write(script)
+        
+        my_print(f"DEBUG: Launching FreeCAD to tessellate {ext} file...")
+        try:
+            subprocess.run([freecad_exe, script_path], check=True)
+            bpy.ops.wm.obj_import(filepath=obj_path)
+        finally:
+            try: os.remove(obj_path)
+            except: pass
+            try: os.remove(script_path)
+            except: pass
     else:
         my_print(f"Warning: Format {ext} might not have a dedicated importer or is unsupported.")
-        # Attempt generic import if possible, but for now just fail or log
         raise ValueError(f"Unsupported format: {ext}")
 
 def normalize_scene():
@@ -740,7 +812,157 @@ def generate_thumbnail(dest_path):
     
     bpy.ops.render.render(write_still=True)
 
+
+def segment_scene(gemini_key):
+    import urllib.request, json
+    
+    # 1. Find Collection Instances
+    instance_collections = set()
+    for obj in bpy.context.scene.objects:
+        if obj.instance_type == 'COLLECTION' and obj.instance_collection:
+            instance_collections.add(obj.instance_collection)
+            
+    # 2. Find Linked Duplicates (unique meshes not in an instance collection)
+    unique_meshes = {}
+    
+    def is_in_instance_coll(obj):
+        for coll in instance_collections:
+            if obj.name in coll.objects:
+                return True
+        return False
+        
+    valid_types = {'MESH', 'CURVE', 'SURFACE', 'META', 'FONT', 'VOLUME'}
+    for obj in bpy.context.scene.objects:
+        if obj.type in valid_types and obj.data:
+            if not is_in_instance_coll(obj):
+                if obj.data.name not in unique_meshes:
+                    unique_meshes[obj.data.name] = obj
+                    
+    # 3. AI Grouping for unique meshes
+    mesh_info = []
+    for data_name, obj in unique_meshes.items():
+        dims = obj.dimensions
+        mesh_info.append({"name": obj.name, "size": [round(dims.x, 2), round(dims.y, 2), round(dims.z, 2)]})
+        
+    assets_to_export = []
+    
+    # Process Collection Instances first
+    for coll in instance_collections:
+        assets_to_export.append({
+            "name": coll.name,
+            "objects": list(coll.objects),
+            "category": "Uncategorized",
+            "tags": ["Collection Instance", coll.name]
+        })
+        
+    # Process Unique Meshes via AI
+    if mesh_info and len(gemini_key) > 30:
+        prompt = f'''You are a 3D asset segmentation assistant.
+I have a list of unique mesh objects from a scene, along with their bounding box dimensions (X, Y, Z):
+{json.dumps(mesh_info, indent=2)}
+
+Please group these objects into logical "Assets". For example, if you see 'Table_Leg', 'Table_Top', group them into an asset named 'Table'.
+Return a JSON array of objects. Each object must have:
+- "asset_name": A clean, generic name for the asset (e.g. "Dining Table").
+- "category": A single broad category for the asset (e.g. "Furniture", "Nature", "Props", "Vehicles").
+- "object_names": An array of exact object names that belong to this asset.
+- "tags": An array of 2-3 descriptive tags (e.g. ["furniture", "table", "dining"]).
+
+Do not use markdown blocks. Return ONLY valid JSON.'''
+
+        try:
+            req = urllib.request.Request(f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key={gemini_key}", data=json.dumps({"contents": [{"parts": [{"text": prompt}]}], "generationConfig": {"responseMimeType": "application/json"}}).encode('utf-8'), headers={'Content-Type': 'application/json'})
+            with urllib.request.urlopen(req) as response:
+                res_data = json.loads(response.read().decode('utf-8'))
+                llm_text = res_data['candidates'][0]['content']['parts'][0]['text']
+                llm_text = llm_text.replace('```json', '').replace('```', '').strip()
+                groups = json.loads(llm_text)
+                
+                for group in groups:
+                    objs = [bpy.context.scene.objects.get(name) for name in group.get("object_names", [])]
+                    objs = [o for o in objs if o]
+                    if objs:
+                        assets_to_export.append({
+                            "name": group.get("asset_name", "Unknown_Asset"),
+                            "category": group.get("category", "Uncategorized"),
+                            "objects": objs,
+                            "tags": group.get("tags", [])
+                        })
+        except Exception as e:
+            my_print(f"DEBUG: Failed AI grouping: {e}")
+            for data_name, obj in unique_meshes.items():
+                assets_to_export.append({
+                    "name": obj.name,
+                    "category": "Uncategorized",
+                    "objects": [obj],
+                    "tags": [obj.name]
+                })
+    else:
+        for data_name, obj in unique_meshes.items():
+            assets_to_export.append({
+                "name": obj.name,
+                "category": "Uncategorized",
+                "objects": [obj],
+                "tags": [obj.name]
+            })
+            
+    return assets_to_export
+
+def collect_textures_for_objects(objects, dest_folder, input_dir):
+    if not os.path.exists(dest_folder):
+        os.makedirs(dest_folder)
+    
+    materials = set()
+    for obj in objects:
+        if obj.type == 'MESH':
+            for slot in obj.material_slots:
+                if slot.material:
+                    materials.add(slot.material)
+                    
+    copied_count = 0
+    restores = {}
+    for mat in materials:
+        if not mat.use_nodes: continue
+        for node in mat.node_tree.nodes:
+            if node.type == 'TEX_IMAGE' and node.image and node.image.source == 'FILE' and node.image.filepath:
+                img = node.image
+                if img.name not in restores:
+                    restores[img.name] = (img, img.filepath)
+                    
+                if img.filepath.startswith('//'):
+                    rel_path = img.filepath[2:]
+                    abs_path = os.path.normpath(os.path.join(input_dir, rel_path))
+                else:
+                    abs_path = bpy.path.abspath(img.filepath)
+                
+                if not os.path.exists(abs_path):
+                    basename = os.path.basename(img.filepath.replace('\\\\', '/'))
+                    alts = [
+                        os.path.join(input_dir, basename),
+                        os.path.join(input_dir, "Textures", basename),
+                        os.path.join(input_dir, "textures", basename),
+                        os.path.join(input_dir, img.name)
+                    ]
+                    for alt in alts:
+                        if os.path.exists(alt):
+                            abs_path = alt
+                            break
+                            
+                if os.path.exists(abs_path):
+                    filename = os.path.basename(abs_path)
+                    new_path = os.path.join(dest_folder, filename)
+                    try:
+                        import shutil
+                        shutil.copy2(abs_path, new_path)
+                        img.filepath = "//" + os.path.join("textures", filename).replace("\\\\", "/")
+                        copied_count += 1
+                    except Exception:
+                        pass
+    return copied_count, restores
+
+
 def main():
+    import uuid
     argv = sys.argv
     if "--" not in argv:
         my_print("Error: Missing arguments after '--'")
@@ -753,32 +975,16 @@ def main():
         
     input_file = args[0]
     output_dir = args[1]
-    category = args[2] if len(args) > 2 else "Uncategorized"
+    default_category = args[2] if len(args) > 2 else "Uncategorized"
     debug_blend_path = args[3] if len(args) > 3 else ""
     gemini_api_key = args[4] if len(args) > 4 else ""
     
     filename = os.path.basename(input_file)
-    asset_name = os.path.splitext(filename)[0]
+    base_asset_name = os.path.splitext(filename)[0]
     source_format = os.path.splitext(filename)[1].lower().replace(".", "")
+    input_dir = os.path.dirname(os.path.abspath(input_file))
     
     my_print(f"Starting conversion for: {input_file}")
-    
-    # Create output directory
-    asset_dir = os.path.join(output_dir, category, asset_name)
-    os.makedirs(asset_dir, exist_ok=True)
-    textures_dir = os.path.join(asset_dir, "textures")
-    
-    asset_id = str(uuid.uuid4())
-    metadata_path = os.path.join(asset_dir, "metadata.json")
-    if os.path.exists(metadata_path):
-        try:
-            with open(metadata_path, 'r') as f:
-                existing_meta = json.load(f)
-                if "id" in existing_meta:
-                    asset_id = existing_meta["id"]
-                    my_print(f"DEBUG: Preserving existing asset ID {asset_id}")
-        except Exception:
-            pass
     
     try:
         setup_scene()
@@ -786,61 +992,117 @@ def main():
         normalize_scene()
         sanitize_materials()
         
-        # Collect textures properly mapped in MTL
-        texture_count = collect_and_relink_textures(textures_dir, input_file)
+        # Link all loose textures for the entire scene first
+        heuristic_count = heuristic_texture_linking(input_dir, os.path.join(output_dir, "temp_tex"), output_dir, gemini_api_key)
         
-        # Run heuristic fallback for missing textures
-        heuristic_count = heuristic_texture_linking(os.path.dirname(os.path.abspath(input_file)), textures_dir, asset_dir, gemini_api_key)
-        texture_count = max(texture_count, heuristic_count)
-        
-        # Save debug .blend file if requested
-        if debug_blend_path and os.path.exists(debug_blend_path):
-            try:
-                debug_file = os.path.join(debug_blend_path, f"{asset_name}_debug.blend")
-                bpy.ops.wm.save_as_mainfile(filepath=debug_file)
-                my_print(f"DEBUG: Saved debug blend file to {debug_file}")
-            except Exception as e:
-                my_print(f"DEBUG: Failed to save debug blend file: {e}")
-        
-        # Export USD
-        usd_path = os.path.join(asset_dir, "asset.usd")
-        bpy.ops.wm.usd_export(filepath=usd_path, selected_objects_only=False, export_textures=True, relative_paths=True)
-        
-        # Clear the messy original import and load the clean USD we just generated.
-        # This guarantees the thumbnail is a 100% accurate representation of the final USD asset!
-        bpy.ops.wm.read_factory_settings(use_empty=True)
-        bpy.ops.wm.usd_import(filepath=usd_path)
-        
-        # Generate Thumbnail
-        thumbnail_path = os.path.join(asset_dir, "thumbnail.png")
-        generate_thumbnail(thumbnail_path)
-        
-        # Create metadata
-        metadata = {
-            "id": asset_id,
-            "name": asset_name,
-            "category": category,
-            "tags": [],
-            "source_format": source_format,
-            "date_added": datetime.now().isoformat(),
-            "thumbnail": "thumbnail.png",
-            "asset_path": "asset.usd",
-            "texture_count": texture_count,
-            "animated": False  # Simplified for MVP
-        }
-        
-        with open(os.path.join(asset_dir, "metadata.json"), 'w') as f:
-            json.dump(metadata, f, indent=2)
+        assets_to_export = []
+        if source_format == 'blend':
+            assets_to_export = segment_scene(gemini_api_key)
+            import re
+            for a in assets_to_export:
+                a["name"] = re.sub(r'[\\\\/*?:"<>|]', '_', a.get("name", "Unknown")).strip()
+                a["category"] = re.sub(r'[\\\\/*?:"<>|]', '_', a.get("category", default_category)).strip()
+            import json
+            manifest = [{"name": a["name"], "category": a["category"]} for a in assets_to_export]
+            my_print(f"QUEUE_MANIFEST: {json.dumps(manifest)}")
+        else:
+            assets_to_export = [{
+                "name": base_asset_name,
+                "category": default_category,
+                "objects": list(bpy.context.scene.objects),
+                "tags": []
+            }]
             
-        my_print("Conversion completed successfully.")
-        
+        for asset in assets_to_export:
+            asset_name = asset["name"]
+            category = asset.get("category", default_category)
+            tags = asset.get("tags", [])
+            objects = asset["objects"]
+            
+            # Create output directory
+            asset_dir = os.path.join(output_dir, category, asset_name)
+            os.makedirs(asset_dir, exist_ok=True)
+            textures_dir = os.path.join(asset_dir, "textures")
+            
+            asset_id = str(uuid.uuid4())
+            metadata_path = os.path.join(asset_dir, "metadata.json")
+            if os.path.exists(metadata_path):
+                try:
+                    import json
+                    with open(metadata_path, 'r') as f:
+                        existing_meta = json.load(f)
+                        if "id" in existing_meta:
+                            asset_id = existing_meta["id"]
+                            my_print(f"DEBUG: Preserving existing asset ID {asset_id} for {asset_name}")
+                except Exception:
+                    pass
+                    
+            # Isolate objects
+            bpy.ops.object.select_all(action='DESELECT')
+            def select_recursive(obj):
+                try:
+                    obj.select_set(True)
+                    for child in obj.children:
+                        select_recursive(child)
+                except Exception: pass
+            
+            for obj in objects:
+                select_recursive(obj)
+                
+            texture_count, restores = collect_textures_for_objects(bpy.context.selected_objects, textures_dir, input_dir)
+            texture_count = max(texture_count, heuristic_count)
+            
+            usd_path = os.path.join(asset_dir, "asset.usd")
+            bpy.ops.wm.usd_export(filepath=usd_path, selected_objects_only=True, export_textures=True, relative_paths=True)
+            
+            for img_name, (img, old_path) in restores.items():
+                try: img.filepath = old_path
+                except: pass
+            
+            
+            # Temporary scene to generate clean thumbnail
+            old_scene = bpy.context.scene
+            new_scene = bpy.data.scenes.new(name="ThumbScene")
+            bpy.context.window.scene = new_scene
+            bpy.ops.wm.usd_import(filepath=usd_path)
+            
+            thumbnail_path = os.path.join(asset_dir, "thumbnail.png")
+            generate_thumbnail(thumbnail_path)
+            
+            bpy.context.window.scene = old_scene
+            bpy.data.scenes.remove(new_scene)
+            
+            # Write metadata
+            metadata = {
+                "id": asset_id,
+                "name": asset_name,
+                "category": category,
+                "tags": tags,
+                "source_format": source_format,
+                "date_added": datetime.now().isoformat(),
+                "thumbnail": "thumbnail.png",
+                "asset_path": "asset.usd",
+                "texture_count": texture_count,
+                "animated": False
+            }
+            import json
+            with open(metadata_path, 'w') as f:
+                json.dump(metadata, f, indent=4)
+                
+            my_print(f"Finished exporting asset: {asset_name}")
+            
     except Exception as e:
         import traceback
         my_print(f"Conversion failed: {e}")
         traceback.print_exc()
-        crash_path = os.path.join(tempfile.gettempdir(), 'usd_converter_crash_log.txt')
-        with open(crash_path, 'w') as crashf:
-            crashf.write(traceback.format_exc())
+        crash_path = os.path.join(log_dir, 'usd_converter_crash_log.txt')
+        try:
+            with open(crash_path, 'w') as crashf:
+                crashf.write(traceback.format_exc())
+        except:
+            crash_path = os.path.join(tempfile.gettempdir(), 'usd_converter_crash_log.txt')
+            with open(crash_path, 'w') as crashf:
+                crashf.write(traceback.format_exc())
         sys.exit(1)
 
 if __name__ == "__main__":
