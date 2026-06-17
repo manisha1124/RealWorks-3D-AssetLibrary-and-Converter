@@ -30,6 +30,23 @@ struct Asset {
     source_format: String,
     animated: bool,
     created_at: String,
+    size_bytes: u64,
+}
+
+fn get_dir_size(path: impl AsRef<Path>) -> u64 {
+    let mut size = 0;
+    if let Ok(entries) = fs::read_dir(path) {
+        for entry in entries.flatten() {
+            if let Ok(metadata) = entry.metadata() {
+                if metadata.is_dir() {
+                    size += get_dir_size(entry.path());
+                } else {
+                    size += metadata.len();
+                }
+            }
+        }
+    }
+    size
 }
 
 struct AppState {
@@ -150,25 +167,25 @@ fn get_assets(state: State<AppState>) -> Result<Vec<Asset>, String> {
                     a != 0
                 },
                 created_at: row.get(8)?,
+                size_bytes: 0,
             })
         })
         .map_err(|e| e.to_string())?;
 
+    let settings = state.settings.lock().unwrap();
+    let library_path = PathBuf::from(&settings.library_path);
+
     let mut assets = Vec::new();
     for asset in asset_iter {
-        if let Ok(a) = asset {
+        if let Ok(mut a) = asset {
+            let asset_dir = library_path.join(&a.category).join(&a.name);
+            a.size_bytes = get_dir_size(asset_dir);
+            
+            if !a.thumbnail.is_empty() {
+                let full_path = library_path.join(&a.category).join(&a.name).join(&a.thumbnail);
+                a.thumbnail = full_path.to_string_lossy().to_string();
+            }
             assets.push(a);
-        }
-    }
-
-    // Fix thumbnail paths to be absolute based on library_path
-    let settings = state.settings.lock().unwrap();
-    let lib_path = Path::new(&settings.library_path);
-    
-    for asset in &mut assets {
-        if !asset.thumbnail.is_empty() {
-            let full_path = lib_path.join(&asset.category).join(&asset.name).join(&asset.thumbnail);
-            asset.thumbnail = full_path.to_string_lossy().to_string();
         }
     }
 
@@ -334,8 +351,92 @@ fn delete_asset(id: String, state: State<'_, AppState>) -> Result<(), String> {
     Ok(())
 }
 
+#[tauri::command]
+fn update_asset_tags(id: String, tags: Vec<String>, state: State<'_, AppState>) -> Result<(), String> {
+    let conn = state.db.lock().unwrap();
+    let tags_str = tags.join(",");
+
+    let (name, category): (String, String) = conn.query_row(
+        "SELECT name, category FROM assets WHERE id = ?1",
+        params![id],
+        |row| Ok((row.get(0)?, row.get(1)?)),
+    ).map_err(|e| format!("Asset not found: {}", e))?;
+
+    conn.execute(
+        "UPDATE assets SET tags = ?1 WHERE id = ?2",
+        params![tags_str, id],
+    ).map_err(|e| format!("Failed to update database: {}", e))?;
+
+    let settings = state.settings.lock().unwrap();
+    let lib_path = Path::new(&settings.library_path);
+    let metadata_path = lib_path.join(&category).join(&name).join("metadata.json");
+
+    if metadata_path.exists() {
+        if let Ok(content) = fs::read_to_string(&metadata_path) {
+            if let Ok(mut metadata) = serde_json::from_str::<serde_json::Value>(&content) {
+                if let Some(obj) = metadata.as_object_mut() {
+                    let tags_value = serde_json::Value::Array(
+                        tags.into_iter().map(serde_json::Value::String).collect()
+                    );
+                    obj.insert("tags".to_string(), tags_value);
+                }
+                
+                if let Ok(new_content) = serde_json::to_string_pretty(&metadata) {
+                    let _ = fs::write(&metadata_path, new_content);
+                }
+            }
+        }
+    }
+
+    Ok(())
+}
+
+#[tauri::command]
+fn open_folder(path: String) -> Result<(), String> {
+    #[cfg(target_os = "windows")]
+    {
+        std::process::Command::new("explorer")
+            .arg(path)
+            .spawn()
+            .map_err(|e| format!("Failed to open folder: {}", e))?;
+    }
+    #[cfg(not(target_os = "windows"))]
+    {
+        let cmd = if cfg!(target_os = "macos") { "open" } else { "xdg-open" };
+        std::process::Command::new(cmd)
+            .arg(path)
+            .spawn()
+            .map_err(|e| format!("Failed to open folder: {}", e))?;
+    }
+    Ok(())
+}
+
+#[tauri::command]
+fn get_texture_files(category: String, name: String, state: State<'_, AppState>) -> Result<Vec<String>, String> {
+    let settings = state.settings.lock().unwrap();
+    let textures_path = Path::new(&settings.library_path).join(&category).join(&name).join("textures");
+    
+    let mut files = Vec::new();
+    if textures_path.exists() && textures_path.is_dir() {
+        if let Ok(entries) = fs::read_dir(textures_path) {
+            for entry in entries.flatten() {
+                if let Ok(file_type) = entry.file_type() {
+                    if file_type.is_file() {
+                        if let Some(file_name) = entry.file_name().to_str() {
+                            files.push(file_name.to_string());
+                        }
+                    }
+                }
+            }
+        }
+    }
+    
+    Ok(files)
+}
+
 fn main() {
     tauri::Builder::default()
+        .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_fs::init())
         .plugin(tauri_plugin_dialog::init())
         .setup(|app| {
@@ -358,7 +459,10 @@ fn main() {
             save_settings,
             get_assets,
             convert_asset,
-            delete_asset
+            delete_asset,
+            update_asset_tags,
+            open_folder,
+            get_texture_files
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

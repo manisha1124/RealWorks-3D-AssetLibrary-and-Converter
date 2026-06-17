@@ -18,7 +18,7 @@ export function Settings() {
     debug_blend_path: '',
     gemini_api_key: ''
   });
-  const [theme, setTheme] = useState("Dark (Default)");
+
   const [defaultCat, setDefaultCat] = useState("Uncategorized");
 
   useEffect(() => {
@@ -28,10 +28,10 @@ export function Settings() {
   const handleSave = async () => {
     try {
       await invoke('save_settings', { settings });
-      toast.success("Settings saved successfully");
+      toast.success("Success", { description: "Settings saved successfully" });
     } catch (e) {
       console.error(e);
-      toast.error("Failed to save settings");
+      toast.error("Save Failed", { description: "Failed to save settings" });
     }
   };
 
@@ -58,7 +58,7 @@ export function Settings() {
   };
 
   return (
-    <div className="flex-1 flex flex-col min-w-0 bg-[#1e1e1e] overflow-y-auto custom-scrollbar">
+    <div className="flex-1 flex flex-col min-w-0 bg-[#1e1e1e] overflow-y-auto custom-scrollbar min-h-0">
       <div className="h-14 border-b border-[#333] flex items-center justify-between px-6 shrink-0 bg-[#1e1e1e] sticky top-0 z-10">
         <h1 className="text-lg font-semibold text-neutral-200">Settings</h1>
         <button 
@@ -78,18 +78,7 @@ export function Settings() {
               <HardDrive className="w-4 h-4" /> General
             </h2>
             <div className="space-y-6">
-              <div className="grid grid-cols-[200px_1fr] gap-6 items-center">
-                <label className="text-sm text-neutral-300">Theme</label>
-                <select 
-                  value={theme}
-                  onChange={e => setTheme(e.target.value)}
-                  className="bg-[#111] border border-[#333] text-sm rounded px-3 py-2 text-neutral-200 focus:outline-none focus:border-blue-500 w-64"
-                >
-                  <option>Dark (Default)</option>
-                  <option>Light</option>
-                  <option>System</option>
-                </select>
-              </div>
+
               <div className="grid grid-cols-[200px_1fr] gap-6 items-center">
                 <label className="text-sm text-neutral-300">Default Category</label>
                 <select 
@@ -203,10 +192,7 @@ export function Settings() {
                 <input type="checkbox" defaultChecked className="w-4 h-4 rounded border-[#333] bg-[#111] text-blue-500 focus:ring-blue-500/20" />
                 <span className="text-sm text-neutral-300">Extract Textures to separate folder</span>
               </label>
-              <label className="flex items-center gap-3">
-                <input type="checkbox" className="w-4 h-4 rounded border-[#333] bg-[#111] text-blue-500 focus:ring-blue-500/20" />
-                <span className="text-sm text-neutral-300">Compress USD files (.usdz)</span>
-              </label>
+
             </div>
           </section>
 

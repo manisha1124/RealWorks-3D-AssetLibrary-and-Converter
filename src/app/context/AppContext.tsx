@@ -19,6 +19,9 @@ export interface Asset {
   time?: string;
   warnings?: string[];
   path?: string;
+  processingStartTime?: number;
+  lastModified?: string;
+  sizeBytes?: number;
 }
 
 export interface LogEntry {
@@ -89,7 +92,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         dateAdded: a.created_at,
         thumbnail: a.thumbnail ? convertFileSrc(a.thumbnail) : "",
         status: "Library" as AssetStatus,
-        path: a.path
+        path: a.path,
+        sizeBytes: a.size_bytes || 0
       }));
       
       // Merge with queued/processing
@@ -109,37 +113,27 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   useEffect(() => {
-    const unlisten = listen('queue-manifest', (event) => {
-      const manifest = event.payload as { name: string, category: string }[];
-      
-      setAssets(prev => {
-        // Remove the generic "Processing" item (e.g. the single .blend file)
-        let newAssets = prev.filter(a => a.id !== currentJobId);
-        
-        // Add all segmented assets to the queue
-        const segmentedAssets = manifest.map((item, index) => ({
-          id: `segment-${Date.now()}-${index}`,
-          name: item.name,
-          category: item.category,
-          tags: [],
-          sourceFormat: "usd",
-          dateAdded: new Date().toISOString(),
-          thumbnail: "",
-          status: "Processing" as const,
-          progress: 0,
-          path: ""
-        }));
-        
-        return [...newAssets, ...segmentedAssets];
-      });
-      
-      addLog("System", "Info", `Scene segmented into ${manifest.length} assets.`);
-    });
-    
-    return () => {
-      unlisten.then(f => f());
-    };
-  }, [currentJobId]);
+    const interval = setInterval(() => {
+      setAssets(prev => prev.map(asset => {
+        if (asset.status === "Processing") {
+          let updated = { ...asset };
+          const current = asset.progress || 0;
+          if (current < 90) {
+            updated.progress = Math.min(90, current + Math.random() * 5 + 2);
+          }
+          if (asset.processingStartTime) {
+            const elapsed = Math.floor((Date.now() - asset.processingStartTime) / 1000);
+            const minutes = Math.floor(elapsed / 60).toString().padStart(2, '0');
+            const seconds = (elapsed % 60).toString().padStart(2, '0');
+            updated.time = `${minutes}:${seconds}`;
+          }
+          return updated;
+        }
+        return asset;
+      }));
+    }, 1000);
+    return () => clearInterval(interval);
+  }, []);
 
   const convertAsset = async (path: string, isBatch = false) => {
     const assetName = path.split(/[\\/]/).pop() || path;
@@ -156,7 +150,9 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       thumbnail: "",
       status: "Processing",
       progress: 0,
-      path: path
+      path: path,
+      processingStartTime: Date.now(),
+      time: "00:00"
     };
     
     setAssets(prev => [...prev, newAsset]);
@@ -165,15 +161,15 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     try {
       await invoke('convert_asset', { path, isBatch });
       addLog(assetName, "Info", "Successfully converted.");
-      toast.success(`Conversion batch completed successfully`);
+      toast.success("Conversion Successful", { description: `Converted ${assetName} successfully` });
       
-      setAssets(prev => prev.filter(a => a.status !== "Processing"));
+      updateAssetStatus(newAsset.id, "Completed", 100);
       loadAssets(); // Reload library from DB
     } catch (e) {
       console.error('Conversion failed', e);
       addLog(assetName, "Error", `Conversion failed: ${e}`);
-      toast.error(`Failed to convert ${assetName}`);
-      setAssets(prev => prev.map(a => a.status === "Processing" ? { ...a, status: "Failed", progress: 0 } : a));
+      toast.error("Conversion Failed", { description: `Failed to convert ${assetName}` });
+      updateAssetStatus(newAsset.id, "Failed", newAsset.progress);
     }
   };
 
@@ -192,7 +188,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       }
     } catch (e) {
       console.error(e);
-      toast.error("Failed to open file dialog");
+      toast.error("Dialog Error", { description: "Failed to open file dialog" });
     }
   };
 
@@ -205,7 +201,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       }
     } catch (e) {
       console.error(e);
-      toast.error("Failed to open folder dialog");
+      toast.error("Dialog Error", { description: "Failed to open folder dialog" });
     }
   };
 
@@ -213,8 +209,14 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     setAssets(prev => prev.map(a => a.id === id ? { ...a, status, progress: progress ?? a.progress } : a));
   };
 
-  const updateAssetTags = (id: string, tags: string[]) => {
-    setAssets(prev => prev.map(a => a.id === id ? { ...a, tags } : a));
+  const updateAssetTags = async (id: string, tags: string[]) => {
+    try {
+      await invoke('update_asset_tags', { id, tags });
+      setAssets(prev => prev.map(a => a.id === id ? { ...a, tags, lastModified: new Date().toISOString() } : a));
+    } catch (e) {
+      console.error(e);
+      toast.error("Update Failed", { description: `Failed to update tags: ${e}` });
+    }
   };
 
   const addAvailableTag = (tag: string) => {
@@ -227,10 +229,10 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     try {
       await invoke('delete_asset', { id });
       setAssets(prev => prev.filter(a => a.id !== id));
-      toast.success("Asset deleted successfully");
+      toast.success("Asset Deleted", { description: "Asset deleted successfully" });
     } catch (e) {
       console.error(e);
-      toast.error(`Failed to delete asset: ${e}`);
+      toast.error("Delete Failed", { description: `Failed to delete asset: ${e}` });
     }
   };
 
@@ -252,13 +254,13 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     if (asset) {
       updateAssetStatus(id, "Cancelled");
       addLog(asset.name, "Warning", "Conversion cancelled by user.");
-      toast.info("Cancelled " + asset.name);
+      toast.info("Conversion Cancelled", { description: "Cancelled " + asset.name });
     }
   };
 
   const clearCompleted = () => {
     setAssets(prev => prev.filter(a => a.status !== "Completed" && a.status !== "Failed" && a.status !== "Cancelled"));
-    toast.success("Cleared non-active items from queue");
+    toast.success("Queue Cleared", { description: "Cleared non-active items from queue" });
   };
 
   return (

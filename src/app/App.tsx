@@ -10,12 +10,17 @@ export default function App() {
       <RouterProvider router={router} />
       <Toaster 
         theme="dark" 
-        position="bottom-right"
+        position="bottom-center"
+        closeButton
         toastOptions={{
           style: {
             background: '#1a1a1a',
             border: '1px solid #333',
             color: '#e0e0e0',
+          },
+          classNames: {
+            error: '[&_[data-icon]]:text-destructive',
+            warning: '[&_[data-icon]]:text-yellow-500'
           }
         }}
       />

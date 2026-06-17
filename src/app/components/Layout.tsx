@@ -1,6 +1,6 @@
-import React, { useState } from "react";
+import React, { useState, useRef, useEffect } from "react";
 import { Link, Outlet, useLocation } from "react-router";
-import { FolderPlus, FilePlus, Search, Box, ListVideo, Terminal, Settings as SettingsIcon, ChevronRight, ChevronDown, CheckCircle2, XCircle, Loader2, AlertCircle } from "lucide-react";
+import { FolderPlus, FilePlus, Search, Box, ListVideo, Terminal, Settings as SettingsIcon, ChevronRight, ChevronDown, CheckCircle2, XCircle, Loader2, AlertCircle, Plus, Menu } from "lucide-react";
 import { useAppContext } from "../context/AppContext";
 import { motion, AnimatePresence } from "motion/react";
 import { clsx, type ClassValue } from "clsx";
@@ -14,13 +14,28 @@ export function Layout() {
   const { queue, processing } = useAppContext();
   const showQueuePanel = queue.length > 0 || processing.length > 0;
   const [isQueueExpanded, setIsQueueExpanded] = useState(false);
+  const mainRef = useRef<HTMLElement>(null);
+
+  useEffect(() => {
+    if (!mainRef.current) return;
+    const observer = new ResizeObserver((entries) => {
+      if (document.getElementById('middle-workspace')) return; // Let inner workspace handle it
+      for (const entry of entries) {
+        const rect = entry.target.getBoundingClientRect();
+        document.body.style.setProperty('--middle-workspace-width', `${rect.width}px`);
+        document.body.style.setProperty('--middle-workspace-left', `${rect.left}px`);
+      }
+    });
+    observer.observe(mainRef.current);
+    return () => observer.disconnect();
+  }, []);
 
   return (
     <div className="flex h-screen bg-[#141414] text-[#e0e0e0] font-sans overflow-hidden selection:bg-[#0066cc] selection:text-white">
       <Sidebar />
       
-      <div className="flex flex-1 flex-col overflow-hidden relative border-l border-[#333]">
-        <main className="flex-1 flex flex-col relative bg-[#1e1e1e] overflow-hidden">
+      <div className="flex flex-1 flex-col overflow-hidden relative border-l border-[#333] min-w-0 min-h-0">
+        <main ref={mainRef} className="flex-1 flex flex-col relative bg-[#1e1e1e] overflow-hidden min-h-0">
           <Outlet />
           
           <AnimatePresence>
@@ -102,27 +117,11 @@ export type CategoryNode = {
 };
 
 export const categories: CategoryNode[] = [
-  { 
-    name: "Furniture", 
-    subcategories: [
-      { name: "Chairs", subcategories: [{ name: "Armchairs" }, { name: "Stools" }, { name: "Sofas" }] }, 
-      { name: "Tables" }, 
-      { name: "Cabinets" }
-    ] 
-  },
-  { 
-    name: "Vehicles", 
-    subcategories: [
-      { name: "Four wheeler" }, 
-      { name: "Two wheeler" }, 
-      { name: "EV" }, 
-      { name: "Aircraft" }, 
-      { name: "Watercraft" }
-    ] 
-  },
-  { name: "Characters", subcategories: [{ name: "Human" }, { name: "Creature" }, { name: "Robots" }] },
-  { name: "Nature", subcategories: [{ name: "Trees" }, { name: "Rocks" }, { name: "Terrain" }] },
-  { name: "Props", subcategories: [{ name: "Weapons" }, { name: "Tools" }, { name: "Electronics" }] },
+  { name: "Furniture" },
+  { name: "Vehicles" },
+  { name: "Characters" },
+  { name: "Nature" },
+  { name: "Props" },
   { name: "Materials" },
   { name: "Uncategorized" }
 ];
@@ -152,8 +151,12 @@ export const getAllNamesForCategory = (name: string, list: CategoryNode[] = cate
 
 function Sidebar() {
   const location = useLocation();
-  const { assets, importAsset, selectedCategory, setSelectedCategory, selectedTags, setSelectedTags, availableTags } = useAppContext();
+  const { assets, importAsset, selectedCategory, setSelectedCategory, selectedTags, setSelectedTags, availableTags, addAvailableTag } = useAppContext();
   
+  const [isAddingTag, setIsAddingTag] = useState(false);
+  const [newTag, setNewTag] = useState("");
+  const [isCollapsed, setIsCollapsed] = useState(false);
+
   const navItems = [
     { path: "/", icon: Box, label: "Library" },
     { path: "/queue", icon: ListVideo, label: "Queue" },
@@ -162,84 +165,74 @@ function Sidebar() {
   ];
 
 
-  const [expandedCats, setExpandedCats] = useState<Record<string, boolean>>({ "Categories": true, "Vehicles": true });
+  const [expandedCats, setExpandedCats] = useState<Record<string, boolean>>({ "Categories": true });
 
   const toggleCat = (catName: string) => {
     setExpandedCats(prev => ({ ...prev, [catName]: !prev[catName] }));
   };
 
   const getAssetCount = (cat: CategoryNode) => {
-    const names = getCategoryNames(cat);
-    return assets.filter(a => a.status === "Library" && names.includes(a.category)).length;
+    return assets.filter(a => a.status === "Library" && a.category === cat.name).length;
   };
 
   const totalLibraryAssets = assets.filter(a => a.status === "Library").length;
 
-  const renderCategory = (cat: CategoryNode, level = 0) => {
-    const hasSub = cat.subcategories && cat.subcategories.length > 0;
-    const isExpanded = expandedCats[cat.name];
+  const renderCategory = (cat: CategoryNode) => {
     const count = getAssetCount(cat);
     
     return (
       <li key={cat.name}>
         <button 
-          onClick={() => {
-            setSelectedCategory(cat.name);
-            if (hasSub) toggleCat(cat.name);
-          }}
+          onClick={() => setSelectedCategory(cat.name)}
           className={cn(
-            "w-full text-left py-1.5 text-sm rounded flex items-center justify-between group transition-colors",
+            "w-full text-left px-2 py-1.5 text-sm rounded flex items-center justify-between group transition-colors",
             selectedCategory === cat.name 
-              ? "bg-[#0066cc]/20 text-blue-400 font-medium px-2"
-              : level === 0 
-                ? "text-neutral-400 hover:text-neutral-200 hover:bg-[#222] px-2" 
-                : "text-neutral-500 hover:text-neutral-300 hover:bg-[#222] px-2"
+              ? "bg-[#0066cc]/20 text-blue-400 font-medium"
+              : "text-neutral-400 hover:text-neutral-200 hover:bg-[#222]"
           )}
-          style={{ paddingLeft: level === 0 ? undefined : `${level * 12 + 8}px` }}
         >
-          <div className="flex items-center gap-2">
-            {level > 0 && !hasSub && <div className={cn("w-1 h-1 rounded-full mr-1", selectedCategory === cat.name ? "bg-blue-400" : "bg-[#444]")} />}
-            <span>{cat.name}</span>
-          </div>
-          <div className="flex items-center gap-2">
-            <span className={cn("text-xs", selectedCategory === cat.name ? "text-blue-400/80" : "text-neutral-500")}>{count}</span>
-            {hasSub && (
-              <ChevronRight 
-                onClick={(e) => {
-                  e.stopPropagation();
-                  toggleCat(cat.name);
-                }}
-                className={cn("w-3.5 h-3.5 transition-transform group-hover:text-neutral-300 cursor-pointer", isExpanded && "rotate-90", selectedCategory === cat.name ? "text-blue-400" : "text-neutral-600")} 
-              />
-            )}
-            {!hasSub && <div className="w-3.5" />}
-          </div>
+          <span>{cat.name}</span>
+          <span className={cn("text-xs", selectedCategory === cat.name ? "text-blue-400/80" : "text-neutral-500")}>{count}</span>
         </button>
-        {hasSub && isExpanded && (
-          <ul className="mt-0.5 space-y-0.5">
-            {cat.subcategories!.map(sub => renderCategory(sub, level + 1))}
-          </ul>
-        )}
       </li>
     );
   };
 
   return (
-    <aside className="w-64 flex flex-col bg-[#141414] overflow-y-auto shrink-0">
-      <div className="h-14 flex items-center gap-3 px-4 shrink-0">
-        <Box className="w-6 h-6 text-[#0066cc]" />
-        <span className="text-neutral-200 font-semibold tracking-wide">RW Asset Browser</span>
+    <motion.aside 
+      animate={{ width: isCollapsed ? 64 : 256 }}
+      transition={{ type: "tween", duration: 0.3, ease: "easeInOut" }}
+      className="flex flex-col bg-[#141414] overflow-y-auto shrink-0 overflow-x-hidden"
+    >
+      <div className={cn("h-14 flex items-center shrink-0 transition-colors", isCollapsed ? "justify-center" : "gap-3 px-4")}>
+        <button 
+          onClick={() => setIsCollapsed(!isCollapsed)} 
+          className="p-1.5 rounded hover:bg-[#222] text-neutral-400 hover:text-white transition-colors"
+          title={isCollapsed ? "Expand Sidebar" : "Collapse Sidebar"}
+        >
+          <Menu className="w-5 h-5" />
+        </button>
+        {!isCollapsed && (
+          <div className="flex items-center gap-2">
+            <img src="/logo.png?v=3" alt="RealWorks Logo" className="w-5 h-5 object-contain" />
+            <span className="text-neutral-200 font-semibold tracking-wide">Asset Browser</span>
+          </div>
+        )}
       </div>
-      <div className="px-3 pb-2 pt-2">
+      <div className={cn("pb-2 pt-2", isCollapsed ? "px-2" : "px-3")}>
         <button 
           onClick={() => importAsset({})}
-          className="w-full flex items-center justify-center gap-2 px-3 py-2 text-sm bg-[#2a2a2a] hover:bg-[#333] border border-[#3d3d3d] text-neutral-200 rounded transition-colors font-medium"
+          className={cn(
+            "flex items-center justify-center gap-2 py-2 text-sm bg-[#2a2a2a] hover:bg-[#333] border border-[#3d3d3d] text-neutral-200 rounded transition-colors font-medium",
+            isCollapsed ? "w-full px-0" : "w-full px-3"
+          )}
+          title="Import Asset"
         >
           <FilePlus className="w-4 h-4 text-neutral-400" />
-          Import Asset
+          {!isCollapsed && <span>Import Asset</span>}
         </button>
       </div>
-      <nav className="p-3 pt-1 space-y-1 border-b border-[#2a2a2a]">
+      <nav className={cn("pt-1 space-y-1 border-b border-[#2a2a2a]", isCollapsed ? "p-2" : "p-3")}>
         {navItems.map(item => {
           const isActive = location.pathname === item.path;
           return (
@@ -247,21 +240,23 @@ function Sidebar() {
               key={item.path} 
               to={item.path}
               className={cn(
-                "flex items-center gap-3 px-3 py-2 rounded text-sm transition-colors",
+                "flex items-center rounded text-sm transition-colors",
+                isCollapsed ? "justify-center py-2" : "gap-3 px-3 py-2",
                 isActive 
                   ? "bg-[#0066cc] text-white" 
                   : "text-neutral-400 hover:text-neutral-200 hover:bg-[#222]"
               )}
+              title={isCollapsed ? item.label : undefined}
             >
-              <item.icon className="w-4 h-4" />
-              {item.label}
+              <item.icon className="w-4 h-4 shrink-0" />
+              {!isCollapsed && <span className="truncate">{item.label}</span>}
             </Link>
           );
         })}
       </nav>
 
       {location.pathname === "/" && (
-        <div className="p-4 flex-1 overflow-y-auto custom-scrollbar">
+        <div className={cn("flex-1 overflow-y-auto custom-scrollbar outline-none", isCollapsed ? "hidden" : "p-4")} tabIndex={0}>
           <div className="mb-6">
             <h3 
               onClick={() => toggleCat('Categories')}
@@ -283,10 +278,7 @@ function Sidebar() {
                     )}
                   >
                     <span>All assets</span>
-                    <div className="flex items-center gap-2">
-                      <span className={cn("text-xs", selectedCategory === "All assets" ? "text-blue-400/80" : "text-neutral-500")}>{totalLibraryAssets}</span>
-                      <div className="w-3.5" />
-                    </div>
+                    <span className={cn("text-xs", selectedCategory === "All assets" ? "text-blue-400/80" : "text-neutral-500")}>{totalLibraryAssets}</span>
                   </button>
                 </li>
                 {categories.map(cat => renderCategory(cat))}
@@ -299,7 +291,8 @@ function Sidebar() {
               Tags
               <ChevronDown className="w-3 h-3" />
             </h3>
-            <div className="flex flex-wrap gap-2">
+            <div className="flex flex-wrap gap-2 items-center">
+            
               {availableTags.map(tag => {
                 const isSelected = selectedTags.includes(tag);
                 return (
@@ -317,10 +310,43 @@ function Sidebar() {
                   </button>
                 );
               })}
+              {!isAddingTag ? (
+                <button
+                  onClick={() => setIsAddingTag(true)}
+                  className="w-5 h-5 flex items-center justify-center rounded border border-dashed border-[#555] bg-transparent hover:bg-[#333] hover:border-solid text-neutral-500 hover:text-white transition-all flex-shrink-0"
+                  title="Create new tag"
+                >
+                  <Plus className="w-3 h-3" />
+                </button>
+              ) : (
+                <input
+                  autoFocus
+                  type="text"
+                  value={newTag}
+                  onChange={(e) => setNewTag(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' && newTag.trim()) {
+                      const tags = newTag.split(',').map(t => t.trim().toLowerCase()).filter(Boolean);
+                      tags.forEach(t => addAvailableTag(t));
+                      setNewTag("");
+                      setIsAddingTag(false);
+                    } else if (e.key === 'Escape') {
+                      setIsAddingTag(false);
+                      setNewTag("");
+                    }
+                  }}
+                  onBlur={() => {
+                    setIsAddingTag(false);
+                    setNewTag("");
+                  }}
+                  className="h-5 w-20 px-1.5 text-[10px] bg-[#111] border border-[#333] text-white rounded focus:outline-none focus:border-blue-500"
+                  placeholder="new tag"
+                />
+              )}
             </div>
           </div>
         </div>
       )}
-    </aside>
+    </motion.aside>
   );
 }

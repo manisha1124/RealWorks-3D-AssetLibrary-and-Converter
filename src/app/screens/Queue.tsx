@@ -14,7 +14,7 @@ export function Queue() {
   const queuedAssets = assets.filter(a => a.status !== "Library");
 
   return (
-    <div className="flex-1 flex flex-col min-w-0 bg-[#1e1e1e]">
+    <div className="flex-1 flex flex-col min-w-0 min-h-0 bg-[#1e1e1e]">
       <div className="h-14 border-b border-[#333] flex items-center justify-between px-6 shrink-0">
         <h1 className="text-lg font-semibold text-neutral-200">Conversion Queue</h1>
         <div className="flex items-center gap-3">
@@ -38,7 +38,7 @@ export function Queue() {
           <table className="w-full text-left text-sm whitespace-nowrap">
             <thead className="bg-[#222] border-b border-[#333]">
               <tr>
-                <th className="px-4 py-3 font-medium text-neutral-400 w-1/3">Asset Name</th>
+                <th className="px-4 py-3 font-medium text-neutral-400 w-32">Asset Name</th>
                 <th className="px-4 py-3 font-medium text-neutral-400 w-32">Status</th>
                 <th className="px-4 py-3 font-medium text-neutral-400 w-64">Progress</th>
                 <th className="px-4 py-3 font-medium text-neutral-400 w-24">Time</th>
@@ -77,13 +77,13 @@ export function Queue() {
                           <span className="font-mono text-xs w-8">{Math.round(asset.progress || 0)}%</span>
                         </div>
                       ) : asset.status === "Completed" ? (
-                        <span className="text-neutral-500">100%</span>
+                        <span className="text-emerald-500 font-medium">Completed</span>
                       ) : (
                         <span className="text-neutral-500">-</span>
                       )}
                     </td>
                     <td className="px-4 py-3 font-mono text-neutral-400">
-                      {asset.status === "Processing" ? "00:14" : asset.status === "Completed" ? "00:45" : "-"}
+                      {asset.status === "Processing" || asset.status === "Completed" ? (asset.time || "-") : "-"}
                     </td>
                     <td className="px-4 py-3">
                       {asset.warnings?.length ? (
