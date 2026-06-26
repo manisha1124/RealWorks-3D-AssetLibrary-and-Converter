@@ -51,9 +51,14 @@ def my_print(*args):
     DEBUG_LOG.flush()
 
 def call_ai_universal(provider, api_key, model, url, prompt_text, b64_images=[]):
-    import urllib.request, urllib.error, json, time
+    import urllib.request, urllib.error, json, time, ssl
     max_retries = 3
-
+    
+    # Disable SSL verification for Blender's internal Python on Linux
+    ctx = ssl.create_default_context()
+    ctx.check_hostname = False
+    ctx.verify_mode = ssl.CERT_NONE
+    
     for attempt in range(max_retries):
         try:
             req = None
@@ -120,15 +125,7 @@ def call_ai_universal(provider, api_key, model, url, prompt_text, b64_images=[])
                 my_print(f"DEBUG: LLM skipped — unrecognised provider {provider!r}")
                 return None, "Unknown provider"
             
-            import ssl as _ssl
-            _ssl_ctx = _ssl.create_default_context()
-            # Blender ships its own Python on Linux without system certs — try known cert stores
-            for _cert in ('/etc/ssl/certs/ca-certificates.crt', '/etc/pki/tls/certs/ca-bundle.crt', '/etc/ssl/cert.pem'):
-                if os.path.exists(_cert):
-                    try: _ssl_ctx = _ssl.create_default_context(cafile=_cert)
-                    except Exception: pass
-                    break
-            with urllib.request.urlopen(req, context=_ssl_ctx) as response:
+            with urllib.request.urlopen(req, context=ctx) as response:
                 res_data = json.loads(response.read().decode('utf-8'))
                 llm_text = ""
                 if provider == "Google Gemini":
@@ -1526,6 +1523,7 @@ def collect_textures_for_objects(objects, dest_folder, input_dir):
                     abs_path = bpy.path.abspath(img.filepath)
                 
                 if not os.path.exists(abs_path):
+                    # Replace single backslashes with forward slashes for Linux compatibility
                     basename = os.path.basename(img.filepath.replace('\\', '/'))
                     alts = [
                         os.path.join(input_dir, basename),
@@ -1549,16 +1547,12 @@ def collect_textures_for_objects(objects, dest_folder, input_dir):
                                 break
 
                 if os.path.exists(abs_path):
-                    filename = os.path.basename(abs_path)
+                    filename = os.path.basename(abs_path.replace('\\', '/'))
                     new_path = os.path.join(dest_folder, filename)
                     try:
                         import shutil
-                        if abs_path != new_path:
-                            shutil.copy2(abs_path, new_path)
-                        img.filepath = "//" + "textures/" + filename
-                        # Force pixel data into Blender memory so Cycles can render the thumbnail.
-                        # Without this, headless mode never loads pixels even when filepath is valid.
-                        img.reload()
+                        shutil.copy2(abs_path, new_path)
+                        img.filepath = "//" + os.path.join("textures", filename).replace('\\', '/')
                         copied_count += 1
                     except Exception:
                         pass
